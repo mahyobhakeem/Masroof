@@ -1,4 +1,4 @@
-package com.masroofi.app.model
+package com.masroofi.app.domain.model
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -9,13 +9,15 @@ import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 
-// نموذج العملية المالية
+/**
+ * نموذج نطاق العمل للعملية المالية (Transaction Domain Model)
+ */
 data class Transaction(
     val id: String,
     val title: String,
-    val amount: Long, // بالريال اليمني دون كسور
+    val amount: Long, // بالريال اليمني دون كسور عشرية
     val category: String,
     val categoryIcon: ImageVector,
     val categoryColor: Color,
@@ -24,7 +26,9 @@ data class Transaction(
     val notes: String = ""
 )
 
-// نموذج التصنيف
+/**
+ * نموذج نطاق العمل للتصنيف المالي (Category Domain Model)
+ */
 data class CategoryItem(
     val id: String,
     val name: String,
@@ -34,7 +38,9 @@ data class CategoryItem(
     val percentage: Int = 0
 )
 
-// بيانات الملخص المالي الموحدة
+/**
+ * بيانات تجريبية متناسقة وموحدة للتطبيق
+ */
 object MockData {
     const val MONTHLY_BUDGET: Long = 100_000
     const val TOTAL_EXPENSES: Long = 35_000
@@ -58,7 +64,7 @@ object MockData {
         CategoryItem("4", "تسوق ومستلزمات", Icons.Default.ShoppingBag, Color(0xFFEE46BC)),
         CategoryItem("5", "صحة وعلاج", Icons.Default.LocalHospital, Color(0xFF12B76A)),
         CategoryItem("6", "راتب شهري", Icons.Default.Payments, Color(0xFF35B98A)),
-        CategoryItem("7", "أرباح واستثمار", Icons.Default.TrendingUp, Color(0xFF16A67A))
+        CategoryItem("7", "أرباح واستثمار", Icons.AutoMirrored.Filled.TrendingUp, Color(0xFF16A67A))
     )
 
     val transactionsList = listOf(
@@ -89,7 +95,7 @@ object MockData {
             title = "دفعة مشروع حر",
             amount = 80_000,
             category = "أرباح واستثمار",
-            categoryIcon = Icons.Default.TrendingUp,
+            categoryIcon = Icons.AutoMirrored.Filled.TrendingUp,
             categoryColor = Color(0xFF35B98A),
             date = "7 نوفمبر 2026",
             isExpense = false,

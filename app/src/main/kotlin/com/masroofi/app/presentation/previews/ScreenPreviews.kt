@@ -1,4 +1,4 @@
-package com.masroofi.app.ui.previews
+package com.masroofi.app.presentation.previews
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
@@ -8,13 +8,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.LayoutDirection
-import com.masroofi.app.ui.home.HomeScreen
-import com.masroofi.app.ui.navigation.MasroofiApp
-import com.masroofi.app.ui.reports.ReportsScreen
-import com.masroofi.app.ui.settings.SettingsScreen
-import com.masroofi.app.ui.theme.MasroofiTheme
-import com.masroofi.app.ui.transactions.AddTransactionScreen
-import com.masroofi.app.ui.transactions.TransactionsHistoryScreen
+import com.masroofi.app.presentation.screens.home.HomeScreen
+import com.masroofi.app.presentation.screens.reports.ReportsScreen
+import com.masroofi.app.presentation.screens.settings.SettingsScreen
+import com.masroofi.app.presentation.screens.transactions.AddTransactionScreen
+import com.masroofi.app.presentation.screens.transactions.TransactionsHistoryScreen
+import com.masroofi.app.presentation.theme.MasroofiTheme
 
 // 1. معاينة الشاشة الرئيسية (الوضع الفاتح)
 @Preview(name = "1. الرئيسية - وضع فاتح", showBackground = true, widthDp = 390, heightDp = 844)

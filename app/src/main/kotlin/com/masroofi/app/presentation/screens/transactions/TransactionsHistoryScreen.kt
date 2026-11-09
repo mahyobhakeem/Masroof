@@ -1,4 +1,4 @@
-package com.masroofi.app.ui.transactions
+package com.masroofi.app.presentation.screens.transactions
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -7,27 +7,23 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.masroofi.app.model.MockData
-import com.masroofi.app.model.Transaction
-import com.masroofi.app.ui.components.MasroofiTextField
-import com.masroofi.app.ui.home.TransactionRowItem
-import com.masroofi.app.ui.home.formatNumber
-import com.masroofi.app.ui.theme.*
+import com.masroofi.app.domain.model.MockData
+import com.masroofi.app.presentation.components.MasroofiTextField
+import com.masroofi.app.presentation.screens.home.TransactionRowItem
+import com.masroofi.app.presentation.theme.*
+import com.masroofi.app.utils.formatNumber
 
 @Composable
 fun TransactionsHistoryScreen(
@@ -225,7 +221,6 @@ fun TransactionsHistoryScreen(
             }
         } else {
             groupedTransactions.forEach { (date, transactions) ->
-                // ترويسة كل تاريخ
                 item(key = "date_header_$date") {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
@@ -270,7 +265,6 @@ fun TransactionsHistoryScreen(
                     }
                 }
 
-                // عمليات ذلك التاريخ
                 items(transactions, key = { it.id }) { transaction ->
                     TransactionRowItem(transaction = transaction)
                 }

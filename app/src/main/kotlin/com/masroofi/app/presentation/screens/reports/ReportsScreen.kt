@@ -1,4 +1,4 @@
-package com.masroofi.app.ui.reports
+package com.masroofi.app.presentation.screens.reports
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -8,8 +8,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -27,9 +27,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.masroofi.app.model.MockData
-import com.masroofi.app.ui.home.formatNumber
-import com.masroofi.app.ui.theme.*
+import com.masroofi.app.domain.model.MockData
+import com.masroofi.app.presentation.theme.*
+import com.masroofi.app.utils.formatNumber
 
 @Composable
 fun ReportsScreen(
@@ -126,7 +126,7 @@ private fun FinancialCardsRow() {
                 title = "إجمالي المصروفات",
                 amount = MockData.TOTAL_EXPENSES,
                 color = ExpenseRed,
-                icon = Icons.Default.TrendingDown,
+                icon = Icons.AutoMirrored.Filled.TrendingDown,
                 modifier = Modifier.weight(1f)
             )
 
@@ -135,7 +135,7 @@ private fun FinancialCardsRow() {
                 title = "إجمالي الإيرادات",
                 amount = MockData.TOTAL_INCOME,
                 color = IncomeGreen,
-                icon = Icons.Default.TrendingUp,
+                icon = Icons.AutoMirrored.Filled.TrendingUp,
                 modifier = Modifier.weight(1f)
             )
         }

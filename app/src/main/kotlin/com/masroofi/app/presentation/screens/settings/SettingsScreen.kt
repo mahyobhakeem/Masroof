@@ -1,9 +1,8 @@
-package com.masroofi.app.ui.settings
+package com.masroofi.app.presentation.screens.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Category
@@ -11,20 +10,19 @@ import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.masroofi.app.model.MockData
-import com.masroofi.app.ui.components.MasroofiExpandableCard
-import com.masroofi.app.ui.components.MasroofiItemCard
-import com.masroofi.app.ui.home.formatNumber
-import com.masroofi.app.ui.theme.*
+import com.masroofi.app.domain.model.MockData
+import com.masroofi.app.presentation.components.MasroofiExpandableCard
+import com.masroofi.app.presentation.components.MasroofiItemCard
+import com.masroofi.app.presentation.theme.*
+import com.masroofi.app.utils.formatNumber
 
 @Composable
 fun SettingsScreen(

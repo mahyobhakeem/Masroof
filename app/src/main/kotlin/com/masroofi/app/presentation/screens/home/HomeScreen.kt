@@ -1,4 +1,4 @@
-package com.masroofi.app.ui.home
+package com.masroofi.app.presentation.screens.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -8,10 +8,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,10 +20,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.masroofi.app.model.MockData
-import com.masroofi.app.model.Transaction
-import com.masroofi.app.ui.components.MasroofiItemCard
-import com.masroofi.app.ui.theme.*
+import com.masroofi.app.domain.model.MockData
+import com.masroofi.app.domain.model.Transaction
+import com.masroofi.app.presentation.components.MasroofiItemCard
+import com.masroofi.app.presentation.theme.*
+import com.masroofi.app.utils.formatNumber
 
 @Composable
 fun HomeScreen(
@@ -161,37 +161,36 @@ private fun HomeHeaderSection() {
     }
 }
 
-// بطاقة الملخص المالي الكبرى
+// بطاقة الملخص المالي
 @Composable
 private fun FinancialSummaryCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
-        shadowElevation = 1.dp
+        tonalElevation = 1.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(20.dp)
         ) {
-            // العنوان وقيمة المصروف الإجمالي
+            // إجمالي مصروفات الشهر
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
                 Column {
                     Text(
                         text = "إجمالي مصروفات الشهر",
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = TextSecondary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "${formatNumber(MockData.TOTAL_EXPENSES)} ريال",
-                        style = MaterialTheme.typography.displayLarge,
+                        style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -199,7 +198,7 @@ private fun FinancialSummaryCard() {
 
                 Box(
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(46.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
@@ -264,7 +263,7 @@ private fun FinancialSummaryCard() {
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.TrendingUp,
+                            imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                             contentDescription = null,
                             tint = IncomeGreen,
                             modifier = Modifier.size(20.dp)
@@ -296,7 +295,7 @@ private fun FinancialSummaryCard() {
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.TrendingDown,
+                            imageVector = Icons.AutoMirrored.Filled.TrendingDown,
                             contentDescription = null,
                             tint = ExpenseRed,
                             modifier = Modifier.size(20.dp)
@@ -382,7 +381,6 @@ private fun TopCategoriesGrid() {
                         }
                     }
                 }
-                // إذا كان الصف يحتوي على عنصر واحد نضع مساحة فارغة لموازنة التصميم
                 if (rowCategories.size == 1) {
                     Spacer(modifier = Modifier.weight(1f))
                 }
@@ -420,9 +418,4 @@ fun TransactionRowItem(transaction: Transaction) {
             }
         }
     )
-}
-
-// دالة تنسيق الأرقام بدون كسور عشرية مع فواصل الآلاف
-fun formatNumber(number: Long): String {
-    return String.format("%,d", number)
 }

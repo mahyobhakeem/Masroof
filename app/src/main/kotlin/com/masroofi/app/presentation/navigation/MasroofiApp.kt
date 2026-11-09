@@ -1,19 +1,18 @@
-package com.masroofi.app.ui.navigation
+package com.masroofi.app.presentation.navigation
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ListAlt
+import androidx.compose.material.icons.automirrored.outlined.ListAlt
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.ListAlt
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
@@ -26,13 +25,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.masroofi.app.ui.home.HomeScreen
-import com.masroofi.app.ui.reports.ReportsScreen
-import com.masroofi.app.ui.settings.SettingsScreen
-import com.masroofi.app.ui.theme.IncomeGreen
-import com.masroofi.app.ui.theme.TextSecondary
-import com.masroofi.app.ui.transactions.AddTransactionScreen
-import com.masroofi.app.ui.transactions.TransactionsHistoryScreen
+import com.masroofi.app.presentation.screens.home.HomeScreen
+import com.masroofi.app.presentation.screens.reports.ReportsScreen
+import com.masroofi.app.presentation.screens.settings.SettingsScreen
+import com.masroofi.app.presentation.screens.transactions.AddTransactionScreen
+import com.masroofi.app.presentation.screens.transactions.TransactionsHistoryScreen
+import com.masroofi.app.presentation.theme.TextSecondary
 
 // تعداد شاشات التطبيق الرئيسية
 enum class AppScreen(
@@ -41,7 +39,7 @@ enum class AppScreen(
     val unselectedIcon: ImageVector
 ) {
     HOME("الرئيسية", Icons.Filled.Home, Icons.Outlined.Home),
-    TRANSACTIONS("العمليات", Icons.Filled.ListAlt, Icons.Outlined.ListAlt),
+    TRANSACTIONS("العمليات", Icons.AutoMirrored.Filled.ListAlt, Icons.AutoMirrored.Outlined.ListAlt),
     REPORTS("التقارير", Icons.Filled.PieChart, Icons.Outlined.PieChart),
     SETTINGS("الإعدادات", Icons.Filled.Settings, Icons.Outlined.Settings)
 }

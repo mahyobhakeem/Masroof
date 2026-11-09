@@ -1,4 +1,4 @@
-package com.masroofi.app.ui.theme
+package com.masroofi.app.presentation.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
@@ -8,31 +8,32 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.masroofi.app.R
 
-// عائلة خط تجوال العربي بالأوزان الثلاثة المطلوبة
+// عائلة خط تجوال العربي بأوزانه الثلاثة
 val TajawalFamily = FontFamily(
     Font(R.font.tajawal_regular, FontWeight.Normal),
     Font(R.font.tajawal_medium, FontWeight.Medium),
     Font(R.font.tajawal_bold, FontWeight.Bold)
 )
 
-val MasroofiTypography = Typography(
-    displayLarge = TextStyle(
-        fontFamily = TajawalFamily,
-        fontWeight = FontWeight.Bold,
-        fontSize = 32.sp,
-        lineHeight = 40.sp
-    ),
+// منظومة الخطوط والطباعة المعتمدة لكامل واجهات التطبيق
+val Typography = Typography(
     headlineLarge = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 24.sp,
-        lineHeight = 32.sp
+        fontSize = 28.sp,
+        lineHeight = 34.sp
     ),
     headlineMedium = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 20.sp,
+        fontSize = 22.sp,
         lineHeight = 28.sp
+    ),
+    headlineSmall = TextStyle(
+        fontFamily = TajawalFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        lineHeight = 24.sp
     ),
     titleLarge = TextStyle(
         fontFamily = TajawalFamily,
@@ -42,27 +43,27 @@ val MasroofiTypography = Typography(
     ),
     titleMedium = TextStyle(
         fontFamily = TajawalFamily,
-        fontWeight = FontWeight.Medium,
-        fontSize = 16.sp,
-        lineHeight = 22.sp
+        fontWeight = FontWeight.Bold,
+        fontSize = 15.sp,
+        lineHeight = 20.sp
     ),
     titleSmall = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.Medium,
-        fontSize = 14.sp,
-        lineHeight = 20.sp
+        fontSize = 13.sp,
+        lineHeight = 18.sp
     ),
     bodyLarge = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 24.sp
+        fontSize = 15.sp,
+        lineHeight = 22.sp
     ),
     bodyMedium = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        lineHeight = 20.sp
+        fontSize = 13.sp,
+        lineHeight = 18.sp
     ),
     bodySmall = TextStyle(
         fontFamily = TajawalFamily,
@@ -72,9 +73,9 @@ val MasroofiTypography = Typography(
     ),
     labelLarge = TextStyle(
         fontFamily = TajawalFamily,
-        fontWeight = FontWeight.Medium,
+        fontWeight = FontWeight.Bold,
         fontSize = 14.sp,
-        lineHeight = 20.sp
+        lineHeight = 18.sp
     ),
     labelMedium = TextStyle(
         fontFamily = TajawalFamily,
@@ -85,7 +86,7 @@ val MasroofiTypography = Typography(
     labelSmall = TextStyle(
         fontFamily = TajawalFamily,
         fontWeight = FontWeight.Normal,
-        fontSize = 10.sp,
+        fontSize = 11.sp,
         lineHeight = 14.sp
     )
 )

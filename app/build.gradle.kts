@@ -78,4 +78,12 @@ dependencies {
   implementation(libs.androidx.navigation3.ui)
   implementation(libs.androidx.navigation3.runtime)
   implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+  implementation(libs.androidx.navigation.compose)
+
+  // Room Database
+  implementation(libs.androidx.room.runtime)
+  implementation(libs.androidx.room.ktx)
+
+  // DataStore Preferences
+  implementation(libs.androidx.datastore.preferences)
 }

@@ -1,15 +1,15 @@
-package com.masroofi.app.ui.components
+package com.masroofi.app.presentation.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,9 +23,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.masroofi.app.ui.theme.*
+import com.masroofi.app.presentation.theme.*
 
-// مكون مربع الإدخال المعتمد وفق المواصفات الصارمة
+/**
+ * مكون مربع الإدخال المعتمد وفق المواصفات الصارمة (OutlinedTextField)
+ */
 @Composable
 fun MasroofiTextField(
     value: String,
@@ -112,7 +114,9 @@ fun MasroofiTextField(
     )
 }
 
-// بطاقة قائمة أو عنصر إعدادات مستقل بزوايا 12 ومسافة رأسية 10
+/**
+ * بطاقة قائمة أو عنصر إعدادات مستقل بزوايا 12 ومسافة رأسية 10
+ */
 @Composable
 fun MasroofiItemCard(
     title: String,
@@ -193,7 +197,9 @@ fun MasroofiItemCard(
     }
 }
 
-// بطاقة قابلة للتوسيع مع عناصر فرعية وخط فاصل
+/**
+ * بطاقة قابلة للتوسيع مع عناصر فرعية وخط فاصل
+ */
 @Composable
 fun MasroofiExpandableCard(
     title: String,

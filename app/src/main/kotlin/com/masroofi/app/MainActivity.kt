@@ -8,8 +8,8 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
-import com.masroofi.app.ui.navigation.MasroofiApp
-import com.masroofi.app.ui.theme.MasroofiTheme
+import com.masroofi.app.presentation.navigation.MasroofiApp
+import com.masroofi.app.presentation.theme.MasroofiTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
