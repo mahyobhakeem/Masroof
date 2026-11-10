@@ -54,7 +54,7 @@ class DomainValidationTest {
             "الصحة",
             "التعليم",
             "الترفيه",
-            "أخرى"
+            "مصروفات أخرى"
         )
         for (required in requiredNames) {
             assertTrue("يجب أن يتضمن تصنيف المصروفات: $required", names.contains(required))
@@ -70,7 +70,7 @@ class DomainValidationTest {
             "العمل الإضافي",
             "التجارة والعمل الحر",
             "الهدايا",
-            "أخرى"
+            "إيرادات أخرى"
         )
         for (required in requiredNames) {
             assertTrue("يجب أن يتضمن تصنيف الإيرادات: $required", names.contains(required))

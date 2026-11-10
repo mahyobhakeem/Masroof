@@ -15,21 +15,52 @@ class CategoryRepositoryImpl(
     private val categoryDao: CategoryDao
 ) : CategoryRepository {
 
+    companion object {
+        // ترتيب الأولوية المنطقية للتصنيفات لضمان ظهور التصنيفات الأساسية أولاً وتصنيف "أخرى" في النهاية دائماً
+        val categoryPriorityMap = mapOf(
+            // تصنيفات المصروفات
+            "cat_exp_food" to 1,
+            "cat_exp_transport" to 2,
+            "cat_exp_shopping" to 3,
+            "cat_exp_bills" to 4,
+            "cat_exp_telecom" to 5,
+            "cat_exp_housing" to 6,
+            "cat_exp_health" to 7,
+            "cat_exp_education" to 8,
+            "cat_exp_entertainment" to 9,
+            "cat_exp_other" to 998,
+            // تصنيفات الإيرادات
+            "cat_inc_salary" to 101,
+            "cat_inc_overtime" to 102,
+            "cat_inc_freelance" to 103,
+            "cat_inc_gifts" to 104,
+            "cat_inc_other" to 999
+        )
+
+        fun sortCategoriesLogically(categories: List<Category>): List<Category> {
+            return categories.sortedWith(
+                compareBy(
+                    { categoryPriorityMap[it.id] ?: 500 },
+                    { it.name }
+                )
+            )
+        }
+    }
+
     override fun getAllCategories(): Flow<List<Category>> {
         return categoryDao.getAllCategoriesFlow().map { list ->
-            list.map { it.toDomain() }
+            sortCategoriesLogically(list.map { it.toDomain() })
         }
     }
 
     override fun getActiveCategories(type: TransactionType?): Flow<List<Category>> {
-        return if (type != null) {
-            categoryDao.getActiveCategoriesByTypeFlow(type).map { list ->
-                list.map { it.toDomain() }
-            }
+        val flow = if (type != null) {
+            categoryDao.getActiveCategoriesByTypeFlow(type)
         } else {
-            categoryDao.getActiveCategoriesFlow().map { list ->
-                list.map { it.toDomain() }
-            }
+            categoryDao.getActiveCategoriesFlow()
+        }
+        return flow.map { list ->
+            sortCategoriesLogically(list.map { it.toDomain() })
         }
     }
 

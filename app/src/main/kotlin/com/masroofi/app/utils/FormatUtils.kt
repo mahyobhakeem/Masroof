@@ -8,10 +8,10 @@ import java.util.Locale
 object FormatUtils {
 
     /**
-     * تنسيق المبالغ المالية بالريال اليمني (YER) كأرقام صحيحة خالية من الكسور
+     * تنسيق المبالغ المالية بالريال اليمني (YER) كأرقام صحيحة خالية من الكسور وبالأرقام القياسية الموحدة (0-9)
      */
     fun formatCurrency(amount: Long, includeUnit: Boolean = true): String {
-        val formatted = String.format(Locale.getDefault(), "%,d", amount)
+        val formatted = String.format(Locale.US, "%,d", amount)
         return if (includeUnit) "$formatted ريال" else formatted
     }
 
@@ -46,10 +46,10 @@ object FormatUtils {
 }
 
 /**
- * دالة مساعدة عامة لتنسيق الأرقام مع فواصل الآلاف
+ * دالة مساعدة عامة لتنسيق الأرقام القياسية (0-9) مع فواصل الآلاف
  */
 fun formatNumber(number: Long): String {
-    return String.format(Locale.getDefault(), "%,d", number)
+    return String.format(Locale.US, "%,d", number)
 }
 
 /**

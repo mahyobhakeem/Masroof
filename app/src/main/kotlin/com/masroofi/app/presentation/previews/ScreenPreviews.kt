@@ -179,11 +179,13 @@ fun TransactionsHistoryScreenLightPreview() {
                 TransactionsHistoryContent(
                     uiState = TransactionsHistoryUiState(
                         transactions = sampleTransactions,
-                        categories = sampleCategories
+                        allCategories = sampleCategories,
+                        availableFilterCategories = sampleCategories
                     ),
                     onSearchQueryChange = {},
                     onFilterIndexChange = {},
                     onCategorySelect = {},
+                    onDatePeriodSelect = {},
                     onResetFilters = {},
                     onEditTransaction = {},
                     onDeleteTransaction = {}
@@ -203,11 +205,13 @@ fun TransactionsHistoryScreenDarkPreview() {
                 TransactionsHistoryContent(
                     uiState = TransactionsHistoryUiState(
                         transactions = sampleTransactions,
-                        categories = sampleCategories
+                        allCategories = sampleCategories,
+                        availableFilterCategories = sampleCategories
                     ),
                     onSearchQueryChange = {},
                     onFilterIndexChange = {},
                     onCategorySelect = {},
+                    onDatePeriodSelect = {},
                     onResetFilters = {},
                     onEditTransaction = {},
                     onDeleteTransaction = {}

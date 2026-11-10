@@ -84,7 +84,7 @@ object DefaultCategories {
         ),
         CategoryEntity(
             id = "cat_exp_other",
-            name = "أخرى",
+            name = "مصروفات أخرى",
             type = TransactionType.EXPENSE,
             iconKey = "more_horiz",
             isDefault = true,
@@ -127,7 +127,7 @@ object DefaultCategories {
         ),
         CategoryEntity(
             id = "cat_inc_other",
-            name = "أخرى",
+            name = "إيرادات أخرى",
             type = TransactionType.INCOME,
             iconKey = "savings",
             isDefault = true,

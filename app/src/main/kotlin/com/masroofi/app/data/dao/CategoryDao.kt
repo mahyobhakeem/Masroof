@@ -20,13 +20,13 @@ interface CategoryDao {
     @Update
     suspend fun updateCategory(category: CategoryEntity)
 
-    @Query("SELECT * FROM categories ORDER BY isDefault DESC, name ASC")
+    @Query("SELECT * FROM categories ORDER BY CASE WHEN id LIKE '%_other' THEN 1 ELSE 0 END ASC, isDefault DESC, name ASC")
     fun getAllCategoriesFlow(): Flow<List<CategoryEntity>>
 
-    @Query("SELECT * FROM categories WHERE isActive = 1 ORDER BY isDefault DESC, name ASC")
+    @Query("SELECT * FROM categories WHERE isActive = 1 ORDER BY CASE WHEN id LIKE '%_other' THEN 1 ELSE 0 END ASC, isDefault DESC, name ASC")
     fun getActiveCategoriesFlow(): Flow<List<CategoryEntity>>
 
-    @Query("SELECT * FROM categories WHERE isActive = 1 AND type = :type ORDER BY isDefault DESC, name ASC")
+    @Query("SELECT * FROM categories WHERE isActive = 1 AND type = :type ORDER BY CASE WHEN id LIKE '%_other' THEN 1 ELSE 0 END ASC, isDefault DESC, name ASC")
     fun getActiveCategoriesByTypeFlow(type: TransactionType): Flow<List<CategoryEntity>>
 
     @Query("SELECT * FROM categories WHERE id = :id LIMIT 1")

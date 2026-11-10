@@ -11,6 +11,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.FilterAlt
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -47,7 +50,8 @@ fun TransactionsHistoryScreen(
         uiState = uiState,
         onSearchQueryChange = { viewModel.setSearchQuery(it) },
         onFilterIndexChange = { viewModel.setFilterIndex(it) },
-        onCategorySelect = { viewModel.setSelectedCategoryName(it) },
+        onCategorySelect = { viewModel.setSelectedCategoryId(it) },
+        onDatePeriodSelect = { viewModel.setDatePeriod(it) },
         onResetFilters = { viewModel.resetFilters() },
         onEditTransaction = onEditTransaction,
         onDeleteTransaction = { viewModel.deleteTransaction(it.id) },
@@ -61,7 +65,8 @@ fun TransactionsHistoryContent(
     uiState: TransactionsHistoryUiState,
     onSearchQueryChange: (String) -> Unit,
     onFilterIndexChange: (Int) -> Unit,
-    onCategorySelect: (String) -> Unit,
+    onCategorySelect: (String?) -> Unit,
+    onDatePeriodSelect: (DateRangeFilter) -> Unit,
     onResetFilters: () -> Unit,
     onEditTransaction: (TransactionItem) -> Unit,
     onDeleteTransaction: (TransactionItem) -> Unit,
@@ -70,10 +75,7 @@ fun TransactionsHistoryContent(
 ) {
     val filterTabs = listOf("الكل", "المصروفات", "الإيرادات")
     var selectedTransactionForDetails by remember { mutableStateOf<TransactionItem?>(null) }
-
-    val allCategoryNames = remember(uiState.categories) {
-        listOf("جميع التصنيفات") + uiState.categories.map { it.name }
-    }
+    var transactionToDelete by remember { mutableStateOf<TransactionItem?>(null) }
 
     val groupedTransactions = remember(uiState.transactions) {
         uiState.transactions.groupBy { it.transactionDate }
@@ -100,21 +102,34 @@ fun TransactionsHistoryContent(
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = "عرض وتصفية جميع العمليات المالية المجمعة حسب التاريخ",
+                    text = "عرض وتصفية وبحث جميع العمليات المالية في سجل موحد",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary
                 )
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // شريط البحث المعتمد بتصميم OutlinedTextField
+            // بطاقة ملخص النتائج المصفاة
+            item {
+                FilteredResultsSummaryCard(
+                    totalExpenses = uiState.totalExpenses,
+                    totalIncome = uiState.totalIncome,
+                    netTotal = uiState.netTotal,
+                    count = uiState.transactions.size
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // شريط البحث المعتمد مع زر المسح
             item {
                 MasroofiTextField(
                     value = uiState.searchQuery,
                     onValueChange = onSearchQueryChange,
                     label = "بحث في العمليات",
-                    placeholder = "ابحث بالمبلغ، التصنيف، أو الملاحظة...",
-                    leadingIcon = Icons.Default.Search
+                    placeholder = "ابحث بالمبلغ أو الملاحظة أو اسم التصنيف...",
+                    leadingIcon = Icons.Default.Search,
+                    trailingText = if (uiState.searchQuery.isNotEmpty()) "مسح" else null,
+                    onClick = null
                 )
                 Spacer(modifier = Modifier.height(12.dp))
             }
@@ -136,7 +151,7 @@ fun TransactionsHistoryContent(
                                     if (isSelected) {
                                         Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
                                     } else {
-                                        Modifier.border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(10.dp))
+                                        Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                                     }
                                 ),
                             shape = RoundedCornerShape(10.dp),
@@ -161,42 +176,112 @@ fun TransactionsHistoryContent(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // شريط تصفية التصنيفات الأفقي
+            // شريط تصفية الفترة الزمنية
             item {
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(allCategoryNames) { categoryName ->
-                        val isSelected = uiState.selectedCategoryName == categoryName
+                    items(DateRangeFilter.values()) { period ->
+                        val isSelected = uiState.selectedDatePeriod == period
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { onDatePeriodSelect(period) },
+                            label = {
+                                Text(
+                                    text = period.title,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                selectedLabelColor = MaterialTheme.colorScheme.primary
+                            )
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // شريط تصفية التصنيفات الأفقي (يعتمد categoryId وليس الاسم)
+            item {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // خيار "جميع التصنيفات"
+                    item {
+                        val isAllSelected = uiState.selectedCategoryId == null
                         Surface(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable { onCategorySelect(categoryName) }
+                                .clickable { onCategorySelect(null) }
+                                .then(
+                                    if (isAllSelected) {
+                                        Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                                    } else {
+                                        Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                    }
+                                ),
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isAllSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
+                        ) {
+                            Text(
+                                text = "جميع التصنيفات",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isAllSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                            )
+                        }
+                    }
+
+                    // عناصر التصنيفات المتاحة
+                    items(uiState.availableFilterCategories, key = { it.id }) { category ->
+                        val isSelected = uiState.selectedCategoryId == category.id
+                        Surface(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onCategorySelect(category.id) }
                                 .then(
                                     if (isSelected) {
                                         Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                                     } else {
-                                        Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                                        Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
                                     }
                                 ),
                             shape = RoundedCornerShape(8.dp),
                             color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
                         ) {
-                            Text(
-                                text = categoryName,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val catIcon = CategoryIconHelper.getIcon(category.iconKey)
+                                val catColor = CategoryIconHelper.getColor(category.iconKey)
+                                Icon(
+                                    imageVector = catIcon,
+                                    contentDescription = null,
+                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else catColor,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = category.name,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // عدد نتائج البحث الإجمالي وزر إعادة التعيين
+            // شريط عدد النتائج وزر إعادة التعيين
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -204,16 +289,22 @@ fun TransactionsHistoryContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "العمليات المسجلة (${uiState.transactions.size})",
+                        text = "العمليات المعروضة (${uiState.transactions.size})",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
-                    if (uiState.selectedCategoryName != "جميع التصنيفات" || uiState.selectedFilterIndex != 0 || uiState.searchQuery.isNotEmpty()) {
+                    val isFiltered = uiState.selectedCategoryId != null ||
+                            uiState.selectedFilterIndex != 0 ||
+                            uiState.selectedDatePeriod != DateRangeFilter.ALL ||
+                            uiState.searchQuery.isNotBlank()
+
+                    if (isFiltered) {
                         TextButton(onClick = onResetFilters) {
                             Text(
                                 text = "إعادة التعيين",
                                 style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -222,28 +313,23 @@ fun TransactionsHistoryContent(
                 Spacer(modifier = Modifier.height(6.dp))
             }
 
-            // القائمة المجمعة حسب التاريخ
+            // القائمة المجمعة حسب التاريخ أو الحالات الفارغة
             if (uiState.transactions.isEmpty()) {
                 item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 40.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "لا توجد عمليات مسجلة تطابق التصفية",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = TextSecondary
-                        )
-                    }
+                    EmptyFilteredStateCard(
+                        hasFilters = uiState.selectedCategoryId != null ||
+                                uiState.selectedFilterIndex != 0 ||
+                                uiState.selectedDatePeriod != DateRangeFilter.ALL ||
+                                uiState.searchQuery.isNotBlank(),
+                        onResetFilters = onResetFilters
+                    )
                 }
             } else {
                 groupedTransactions.forEach { (date, transactions) ->
                     item(key = "date_header_$date") {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(top = 10.dp, bottom = 4.dp)
@@ -273,14 +359,29 @@ fun TransactionsHistoryContent(
                                 val dailyExpenseSum = transactions
                                     .filter { it.type == TransactionType.EXPENSE }
                                     .sumOf { it.amount }
-                                if (dailyExpenseSum > 0) {
-                                    Text(
-                                        text = "إجمالي: - ${formatNumber(dailyExpenseSum)} ريال",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontWeight = FontWeight.Medium,
-                                        color = ExpenseRed,
-                                        fontSize = 11.sp
-                                    )
+                                val dailyIncomeSum = transactions
+                                    .filter { it.type == TransactionType.INCOME }
+                                    .sumOf { it.amount }
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    if (dailyExpenseSum > 0) {
+                                        Text(
+                                            text = "- ${formatNumber(dailyExpenseSum)} ريال",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = ExpenseRed,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                    if (dailyIncomeSum > 0) {
+                                        Text(
+                                            text = "+ ${formatNumber(dailyIncomeSum)} ريال",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = IncomeGreen,
+                                            fontSize = 11.sp
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -307,10 +408,198 @@ fun TransactionsHistoryContent(
                 onEditTransaction(it)
             },
             onDelete = {
-                selectedTransactionForDetails = null
-                onDeleteTransaction(it)
+                transactionToDelete = it
             }
         )
+    }
+
+    // نافذة تأكيد حذف العملية
+    if (transactionToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { transactionToDelete = null },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = {
+                Text(
+                    text = "تأكيد حذف العملية",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    text = "هل أنت متأكد من رغبتك في حذف هذه العملية بشكل نهائي؟ لا يمكن التراجع عن هذا الإجراء.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val toDel = transactionToDelete
+                        transactionToDelete = null
+                        selectedTransactionForDetails = null
+                        if (toDel != null) {
+                            onDeleteTransaction(toDel)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(
+                        text = "نعم، حذف",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onError
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { transactionToDelete = null }) {
+                    Text(
+                        text = "إلغاء",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        )
+    }
+}
+
+/**
+ * بطاقة ملخص النتائج المصفاة
+ */
+@Composable
+private fun FilteredResultsSummaryCard(
+    totalExpenses: Long,
+    totalIncome: Long,
+    netTotal: Long,
+    count: Int
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // إجمالي المصروفات
+            Column {
+                Text(
+                    text = "المصروفات",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary,
+                    fontSize = 11.sp
+                )
+                Text(
+                    text = "- ${formatNumber(totalExpenses)} ريال",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = ExpenseRed
+                )
+            }
+
+            // إجمالي الإيرادات
+            Column {
+                Text(
+                    text = "الإيرادات",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary,
+                    fontSize = 11.sp
+                )
+                Text(
+                    text = "+ ${formatNumber(totalIncome)} ريال",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = IncomeGreen
+                )
+            }
+
+            // صافي التدفق
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "الصافي",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary,
+                    fontSize = 11.sp
+                )
+                val netColor = if (netTotal >= 0) IncomeGreen else ExpenseRed
+                val prefix = if (netTotal >= 0) "+ " else "- "
+                Text(
+                    text = "$prefix${formatNumber(kotlin.math.abs(netTotal))} ريال",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = netColor
+                )
+            }
+        }
+    }
+}
+
+/**
+ * بطاقة الحالة الفارغة عند عدم وجود نتائج
+ */
+@Composable
+private fun EmptyFilteredStateCard(
+    hasFilters: Boolean,
+    onResetFilters: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = if (hasFilters) "لا توجد نتائج تطابق معايير البحث والتصفية" else "لا توجد عمليات مسجلة بعد",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = if (hasFilters) "جرّب تغيير كلمات البحث أو إعادة ضبط المرشحات" else "اضغط على زر (+) في الأسفل لإضافة أول معاملة مالية",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+            if (hasFilters) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = onResetFilters,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("إعادة ضبط المرشحات")
+                }
+            }
+        }
     }
 }
 

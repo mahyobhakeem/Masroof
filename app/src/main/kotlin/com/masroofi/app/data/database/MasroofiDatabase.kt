@@ -71,6 +71,16 @@ abstract class MasroofiDatabase : RoomDatabase() {
                     }
                 }
             }
+
+            override fun onOpen(db: SupportSQLiteDatabase) {
+                super.onOpen(db)
+                // ضمان تمييز أسماء التصنيفات الافتراضية بدقة
+                try {
+                    db.execSQL("UPDATE categories SET name = 'مصروفات أخرى' WHERE id = 'cat_exp_other' AND name = 'أخرى'")
+                    db.execSQL("UPDATE categories SET name = 'إيرادات أخرى' WHERE id = 'cat_inc_other' AND name = 'أخرى'")
+                } catch (_: Exception) {
+                }
+            }
         }
 
         /**
