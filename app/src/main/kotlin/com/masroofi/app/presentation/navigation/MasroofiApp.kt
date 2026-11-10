@@ -32,6 +32,8 @@ import com.masroofi.app.presentation.screens.home.HomeScreen
 import com.masroofi.app.presentation.screens.home.HomeViewModel
 import com.masroofi.app.presentation.screens.home.HomeViewModelFactory
 import com.masroofi.app.presentation.screens.reports.ReportsScreen
+import com.masroofi.app.presentation.screens.reports.ReportsViewModel
+import com.masroofi.app.presentation.screens.reports.ReportsViewModelFactory
 import com.masroofi.app.presentation.screens.settings.SettingsScreen
 import com.masroofi.app.presentation.screens.transactions.AddTransactionScreen
 import com.masroofi.app.presentation.screens.transactions.TransactionFormViewModel
@@ -85,6 +87,12 @@ fun MasroofiApp(
         )
     )
 
+    val reportsViewModel: ReportsViewModel = viewModel(
+        factory = ReportsViewModelFactory(
+            getMonthlyReportUseCase = container.getMonthlyReportUseCase
+        )
+    )
+
     var currentScreen by remember { mutableStateOf(AppScreen.HOME) }
     var showAddTransactionSheet by remember { mutableStateOf(false) }
 
@@ -129,7 +137,9 @@ fun MasroofiApp(
                             showAddTransactionSheet = true
                         }
                     )
-                    AppScreen.REPORTS -> ReportsScreen()
+                    AppScreen.REPORTS -> ReportsScreen(
+                        viewModel = reportsViewModel
+                    )
                     AppScreen.SETTINGS -> SettingsScreen(
                         isDarkMode = isDarkMode,
                         onToggleDarkMode = onToggleDarkMode

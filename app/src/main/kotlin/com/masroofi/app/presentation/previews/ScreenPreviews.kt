@@ -10,12 +10,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.LayoutDirection
 import com.masroofi.app.domain.calculations.CategoryExpenseSummary
 import com.masroofi.app.domain.calculations.FinancialSummary
+import com.masroofi.app.domain.calculations.MonthlyComparisonItem
+import com.masroofi.app.domain.calculations.MonthlyReportData
+import com.masroofi.app.domain.calculations.WeeklySpendingItem
 import com.masroofi.app.domain.model.Category
 import com.masroofi.app.domain.model.TransactionItem
 import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.presentation.screens.home.HomeScreenContent
 import com.masroofi.app.presentation.screens.home.HomeUiState
-import com.masroofi.app.presentation.screens.reports.ReportsScreen
+import com.masroofi.app.presentation.screens.reports.ReportsContent
+import com.masroofi.app.presentation.screens.reports.ReportsUiState
 import com.masroofi.app.presentation.screens.settings.SettingsScreen
 import com.masroofi.app.presentation.screens.transactions.AddTransactionContent
 import com.masroofi.app.presentation.screens.transactions.TransactionFormUiState
@@ -221,6 +225,41 @@ fun TransactionsHistoryScreenDarkPreview() {
     }
 }
 
+private val sampleReportsUiState = ReportsUiState(
+    selectedYearMonth = YearMonth.of(2026, 11),
+    reportData = MonthlyReportData(
+        yearMonth = YearMonth.of(2026, 11),
+        totalExpenses = 48000L,
+        totalIncome = 105000L,
+        netCashflow = 57000L,
+        averageDailyExpense = 4800L,
+        averageWeeklyExpense = 12000L,
+        categoryBreakdown = listOf(
+            CategoryExpenseSummary("cat_exp_food", "الطعام والمشروبات", "fastfood", "#E76F51", 21500L, 45, 3),
+            CategoryExpenseSummary("cat_exp_shopping", "التسوق والملابس", "shopping_bag", "#F4A261", 12000L, 25, 2),
+            CategoryExpenseSummary("cat_exp_bills", "الفواتير والخدمات", "receipt", "#2A9D8F", 11000L, 23, 1),
+            CategoryExpenseSummary("cat_exp_other", "مصروفات أخرى", "more_horiz", "#6C757D", 3500L, 7, 1)
+        ),
+        weeklySpendingList = listOf(
+            WeeklySpendingItem("الأسبوع 1", "1 - 7", 23000L, 48),
+            WeeklySpendingItem("الأسبوع 2", "8 - 14", 25000L, 52),
+            WeeklySpendingItem("الأسبوع 3", "15 - 21", 0L, 0),
+            WeeklySpendingItem("الأسبوع 4+", "22 - 30", 0L, 0)
+        ),
+        peakSpendingPeriod = "الأسبوع 2",
+        monthlyComparisons = listOf(
+            MonthlyComparisonItem(YearMonth.of(2026, 6), "يونيو", 35000L),
+            MonthlyComparisonItem(YearMonth.of(2026, 7), "يوليو", 42000L),
+            MonthlyComparisonItem(YearMonth.of(2026, 8), "أغسطس", 38000L),
+            MonthlyComparisonItem(YearMonth.of(2026, 9), "سبتمبر", 50000L),
+            MonthlyComparisonItem(YearMonth.of(2026, 10), "أكتوبر", 40000L),
+            MonthlyComparisonItem(YearMonth.of(2026, 11), "نوفمبر", 48000L, isCurrentSelected = true)
+        ),
+        monthChangePercentage = 20,
+        hasExpenses = true
+    )
+)
+
 // 4. معاينة شاشة التقارير (الوضع الفاتح)
 @Preview(name = "4. التقارير - وضع فاتح", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
@@ -228,7 +267,12 @@ fun ReportsScreenLightPreview() {
     MasroofiTheme(darkTheme = false) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Surface(modifier = Modifier.fillMaxSize()) {
-                ReportsScreen()
+                ReportsContent(
+                    uiState = sampleReportsUiState,
+                    onPreviousMonth = {},
+                    onNextMonth = {},
+                    onCategorySelect = {}
+                )
             }
         }
     }
@@ -241,7 +285,12 @@ fun ReportsScreenDarkPreview() {
     MasroofiTheme(darkTheme = true) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Surface(modifier = Modifier.fillMaxSize()) {
-                ReportsScreen()
+                ReportsContent(
+                    uiState = sampleReportsUiState,
+                    onPreviousMonth = {},
+                    onNextMonth = {},
+                    onCategorySelect = {}
+                )
             }
         }
     }

@@ -2,13 +2,15 @@ package com.masroofi.app.domain.calculations
 
 import com.masroofi.app.domain.model.TransactionItem
 import com.masroofi.app.domain.model.TransactionType
+import com.masroofi.app.utils.FormatUtils
 import java.time.LocalDate
 import java.time.YearMonth
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 /**
  * محرك الحسابات المالية الدقيقة لتطبيق مصروفي
- * يقوم بحساب المؤشرات المالية السبعة وقواعد الميزانية والتدفق النقدي
+ * يقوم بحساب المؤشرات المالية السبعة وقواعد الميزانية والتدفق النقدي وتقارير الإحصائيات
  */
 object FinancialCalculator {
 
@@ -140,13 +142,165 @@ object FinancialCalculator {
 
                 CategoryExpenseSummary(
                     categoryId = catId,
-                    categoryName = first.categoryName ?: "أخرى",
+                    categoryName = first.categoryName ?: "مصروفات أخرى",
                     iconKey = first.categoryIconKey ?: "category",
                     colorHex = "#2A9D8F",
                     totalSpent = totalSpent,
-                    percentage = percentage
+                    percentage = percentage,
+                    transactionCount = categoryTransactions.size
                 )
             }
             .sortedByDescending { it.totalSpent }
+    }
+
+    /**
+     * حساب متوسط المصروف اليومي في الشهر المختار
+     * يُقسم إجمالي المصروفات على عدد الأيام المنقضية للشهر الحالي، أو إجمالي أيام الشهر للشهر السابق
+     * مع الحماية التامة من القسمة على صفر
+     */
+    fun calculateAverageDailyExpense(
+        yearMonth: YearMonth,
+        monthlyExpenses: Long,
+        currentDate: LocalDate = LocalDate.now()
+    ): Long {
+        if (monthlyExpenses <= 0L) return 0L
+        val currentYearMonth = YearMonth.from(currentDate)
+        val elapsedDays = when {
+            yearMonth == currentYearMonth -> currentDate.dayOfMonth
+            yearMonth.isBefore(currentYearMonth) -> yearMonth.lengthOfMonth()
+            else -> yearMonth.lengthOfMonth()
+        }
+        if (elapsedDays <= 0) return 0L
+        return (monthlyExpenses.toDouble() / elapsedDays.toDouble()).roundToLong()
+    }
+
+    /**
+     * حساب توزيع المصروفات عبر أسابيع الشهر الأربعة
+     */
+    fun calculateWeeklySpending(
+        yearMonth: YearMonth,
+        transactions: List<TransactionItem>,
+        totalMonthlyExpenses: Long
+    ): List<WeeklySpendingItem> {
+        val expenses = transactions.filter { it.type == TransactionType.EXPENSE }
+        val daysInMonth = yearMonth.lengthOfMonth()
+
+        // الفترات الأربع في الشهر: (1-7)، (8-14)، (15-21)، (22-نهاية الشهر)
+        val periods = listOf(
+            Triple("الأسبوع 1", "1 - 7", 1..7),
+            Triple("الأسبوع 2", "8 - 14", 8..14),
+            Triple("الأسبوع 3", "15 - 21", 15..21),
+            Triple("الأسبوع 4+", "22 - $daysInMonth", 22..daysInMonth)
+        )
+
+        return periods.map { (name, label, dayRange) ->
+            val periodAmount = expenses.filter { transaction ->
+                val day = try {
+                    LocalDate.parse(transaction.transactionDate).dayOfMonth
+                } catch (_: Exception) {
+                    1
+                }
+                day in dayRange
+            }.sumOf { it.amount }
+
+            val percentage = if (totalMonthlyExpenses > 0L) {
+                ((periodAmount.toDouble() / totalMonthlyExpenses.toDouble()) * 100.0).roundToInt()
+            } else 0
+
+            WeeklySpendingItem(
+                periodName = name,
+                daysLabel = label,
+                amount = periodAmount,
+                percentage = percentage
+            )
+        }
+    }
+
+    /**
+     * حساب مقارنة المصروفات عبر الأشهر (آخر 6 أشهر تسبق الشهر المختار أو تنتهي به)
+     * مع نسبة التغير مقارنة بالشهر السابق مباشرة
+     */
+    fun calculateMonthlyComparisons(
+        selectedMonth: YearMonth,
+        allTransactions: List<TransactionItem>,
+        monthsCount: Int = 6
+    ): Pair<List<MonthlyComparisonItem>, Int?> {
+        val expenses = allTransactions.filter { it.type == TransactionType.EXPENSE }
+        val months = (monthsCount - 1 downTo 0).map { selectedMonth.minusMonths(it.toLong()) }
+
+        val comparisonItems = months.map { ym ->
+            val prefix = ym.toString()
+            val monthAmount = expenses
+                .filter { it.transactionDate.startsWith(prefix) }
+                .sumOf { it.amount }
+
+            MonthlyComparisonItem(
+                yearMonth = ym,
+                monthLabel = FormatUtils.formatMonthName(ym.monthValue),
+                amount = monthAmount,
+                isCurrentSelected = (ym == selectedMonth)
+            )
+        }
+
+        // حساب نسبة التغير مقارنة بالشهر السابق مباشرة
+        val prevMonth = selectedMonth.minusMonths(1)
+        val prevPrefix = prevMonth.toString()
+        val prevAmount = expenses
+            .filter { it.transactionDate.startsWith(prevPrefix) }
+            .sumOf { it.amount }
+
+        val currentAmount = expenses
+            .filter { it.transactionDate.startsWith(selectedMonth.toString()) }
+            .sumOf { it.amount }
+
+        val changePercentage: Int? = when {
+            prevAmount > 0L -> {
+                val diff = currentAmount - prevAmount
+                ((diff.toDouble() / prevAmount.toDouble()) * 100.0).roundToInt()
+            }
+            prevAmount == 0L && currentAmount > 0L -> 100
+            else -> 0
+        }
+
+        return Pair(comparisonItems, changePercentage)
+    }
+
+    /**
+     * بناء تقرير الإحصائيات المالي الشامل للشهر المختار
+     */
+    fun buildMonthlyReport(
+        selectedMonth: YearMonth,
+        monthTransactions: List<TransactionItem>,
+        allTransactions: List<TransactionItem>,
+        currentDate: LocalDate = LocalDate.now()
+    ): MonthlyReportData {
+        val totalExpenses = calculateMonthlyExpenses(monthTransactions)
+        val totalIncome = calculateMonthlyIncome(monthTransactions)
+        val netCashflow = calculateNetCashflow(totalIncome, totalExpenses)
+        val averageDaily = calculateAverageDailyExpense(selectedMonth, totalExpenses, currentDate)
+        val averageWeekly = if (totalExpenses > 0L) (totalExpenses.toDouble() / 4.0).roundToLong() else 0L
+
+        val categoryBreakdown = calculateTopCategories(monthTransactions, totalExpenses)
+        val weeklySpending = calculateWeeklySpending(selectedMonth, monthTransactions, totalExpenses)
+        val (monthlyComparisons, changePercentage) = calculateMonthlyComparisons(selectedMonth, allTransactions)
+
+        val peakPeriod = weeklySpending.maxByOrNull { it.amount }?.let {
+            if (it.amount > 0L) it.periodName else null
+        }
+
+        return MonthlyReportData(
+            yearMonth = selectedMonth,
+            totalExpenses = totalExpenses,
+            totalIncome = totalIncome,
+            netCashflow = netCashflow,
+            averageDailyExpense = averageDaily,
+            averageWeeklyExpense = averageWeekly,
+            categoryBreakdown = categoryBreakdown,
+            weeklySpendingList = weeklySpending,
+            peakSpendingPeriod = peakPeriod,
+            monthlyComparisons = monthlyComparisons,
+            monthChangePercentage = changePercentage,
+            hasExpenses = totalExpenses > 0L
+        )
     }
 }

@@ -9,5 +9,6 @@ data class CategoryExpenseSummary(
     val iconKey: String,
     val colorHex: String,
     val totalSpent: Long,
-    val percentage: Int
+    val percentage: Int,
+    val transactionCount: Int = 1
 )

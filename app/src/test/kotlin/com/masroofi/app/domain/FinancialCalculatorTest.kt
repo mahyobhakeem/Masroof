@@ -219,4 +219,88 @@ class FinancialCalculatorTest {
         assertEquals("المتبقي يحسب فقط من المصروفات (100k - 40k = 60k)", 60000L, remaining)
         assertEquals("صافي التدفق يحسب بشكل مستقل (90k - 40k = 50k)", 50000L, netFlow)
     }
+
+    @Test
+    fun `test average daily expense calculation`() {
+        // 1. الشهر الحالي: القسمة على عدد الأيام المنقضية (10 أيام مثلاً)
+        val currentMonth = YearMonth.of(2026, 11)
+        val currentDate = LocalDate.of(2026, 11, 10)
+        val avgCurrent = FinancialCalculator.calculateAverageDailyExpense(
+            yearMonth = currentMonth,
+            monthlyExpenses = 50000L,
+            currentDate = currentDate
+        )
+        assertEquals("50,000 / 10 = 5,000 ريال", 5000L, avgCurrent)
+
+        // 2. شهر سابق: القسمة على إجمالي أيام الشهر (أكتوبر 31 يوماً)
+        val pastMonth = YearMonth.of(2026, 10)
+        val avgPast = FinancialCalculator.calculateAverageDailyExpense(
+            yearMonth = pastMonth,
+            monthlyExpenses = 62000L,
+            currentDate = currentDate
+        )
+        assertEquals("62,000 / 31 = 2,000 ريال", 2000L, avgPast)
+
+        // 3. حالة الصفر: لا توجد مصروفات
+        val avgZero = FinancialCalculator.calculateAverageDailyExpense(
+            yearMonth = currentMonth,
+            monthlyExpenses = 0L,
+            currentDate = currentDate
+        )
+        assertEquals("المتوسط صفر عند انعدام المصروفات", 0L, avgZero)
+    }
+
+    @Test
+    fun `test weekly spending distribution across 4 periods`() {
+        val month = YearMonth.of(2026, 11)
+        val transactions = listOf(
+            TransactionItem("t1", TransactionType.EXPENSE, 10000, sampleFoodCategory.id, transactionDate = "2026-11-03"), // الأسبوع 1
+            TransactionItem("t2", TransactionType.EXPENSE, 20000, sampleFoodCategory.id, transactionDate = "2026-11-06"), // الأسبوع 1
+            TransactionItem("t3", TransactionType.EXPENSE, 15000, sampleBillsCategory.id, transactionDate = "2026-11-10"), // الأسبوع 2
+            TransactionItem("t4", TransactionType.EXPENSE, 25000, sampleBillsCategory.id, transactionDate = "2026-11-18"), // الأسبوع 3
+            TransactionItem("t5", TransactionType.EXPENSE, 30000, sampleBillsCategory.id, transactionDate = "2026-11-25")  // الأسبوع 4+
+        )
+        val totalExpenses = 100000L
+
+        val weeklyList = FinancialCalculator.calculateWeeklySpending(month, transactions, totalExpenses)
+
+        assertEquals(4, weeklyList.size)
+        assertEquals("الأسبوع 1: 30,000", 30000L, weeklyList[0].amount)
+        assertEquals(30, weeklyList[0].percentage)
+
+        assertEquals("الأسبوع 2: 15,000", 15000L, weeklyList[1].amount)
+        assertEquals(15, weeklyList[1].percentage)
+
+        assertEquals("الأسبوع 3: 25,000", 25000L, weeklyList[2].amount)
+        assertEquals(25, weeklyList[2].percentage)
+
+        assertEquals("الأسبوع 4+: 30,000", 30000L, weeklyList[3].amount)
+        assertEquals(30, weeklyList[3].percentage)
+    }
+
+    @Test
+    fun `test monthly comparison and percentage change`() {
+        val selectedMonth = YearMonth.of(2026, 11)
+        val allTransactions = listOf(
+            TransactionItem("t1", TransactionType.EXPENSE, 40000, sampleFoodCategory.id, transactionDate = "2026-10-15"),
+            TransactionItem("t2", TransactionType.EXPENSE, 60000, sampleFoodCategory.id, transactionDate = "2026-11-05")
+        )
+
+        val (comparisons, changePercentage) = FinancialCalculator.calculateMonthlyComparisons(
+            selectedMonth = selectedMonth,
+            allTransactions = allTransactions,
+            monthsCount = 6
+        )
+
+        assertEquals("يجب أن يقارن آخر 6 أشهر", 6, comparisons.size)
+        assertEquals("نوفمبر", comparisons.last().monthLabel)
+        assertEquals(60000L, comparisons.last().amount)
+        assertTrue("الشهر المختار يجب تمييزه", comparisons.last().isCurrentSelected)
+
+        assertEquals("أكتوبر", comparisons[comparisons.size - 2].monthLabel)
+        assertEquals(40000L, comparisons[comparisons.size - 2].amount)
+
+        // نسبة التغير من 40,000 إلى 60,000 هي: ((60k - 40k) / 40k) * 100 = +50%
+        assertEquals(50, changePercentage)
+    }
 }

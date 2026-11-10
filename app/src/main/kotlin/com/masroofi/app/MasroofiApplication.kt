@@ -11,6 +11,7 @@ import com.masroofi.app.domain.repository.CategoryRepository
 import com.masroofi.app.domain.repository.MonthlyBudgetRepository
 import com.masroofi.app.domain.repository.TransactionRepository
 import com.masroofi.app.domain.usecase.GetMonthlyFinancialSummaryUseCase
+import com.masroofi.app.domain.usecase.GetMonthlyReportUseCase
 import com.masroofi.app.domain.usecase.SetMonthlyBudgetUseCase
 
 /**
@@ -25,6 +26,7 @@ interface AppContainer {
     val preferencesManager: PreferencesManager
     val getMonthlyFinancialSummaryUseCase: GetMonthlyFinancialSummaryUseCase
     val setMonthlyBudgetUseCase: SetMonthlyBudgetUseCase
+    val getMonthlyReportUseCase: GetMonthlyReportUseCase
 }
 
 /**
@@ -58,6 +60,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val setMonthlyBudgetUseCase: SetMonthlyBudgetUseCase by lazy {
         SetMonthlyBudgetUseCase(monthlyBudgetRepository)
+    }
+
+    override val getMonthlyReportUseCase: GetMonthlyReportUseCase by lazy {
+        GetMonthlyReportUseCase(transactionRepository)
     }
 }
 

@@ -23,10 +23,10 @@ object FormatUtils {
     }
 
     /**
-     * تنسيق الشهر والسنة باللغة العربية الفصحى
+     * اسم الشهر العربي بمفرده
      */
-    fun formatYearMonth(yearMonth: java.time.YearMonth): String {
-        val monthName = when (yearMonth.monthValue) {
+    fun formatMonthName(monthValue: Int): String {
+        return when (monthValue) {
             1 -> "يناير"
             2 -> "فبراير"
             3 -> "مارس"
@@ -39,8 +39,15 @@ object FormatUtils {
             10 -> "أكتوبر"
             11 -> "نوفمبر"
             12 -> "ديسمبر"
-            else -> yearMonth.month.name
+            else -> ""
         }
+    }
+
+    /**
+     * تنسيق الشهر والسنة باللغة العربية الفصحى
+     */
+    fun formatYearMonth(yearMonth: java.time.YearMonth): String {
+        val monthName = formatMonthName(yearMonth.monthValue)
         return "$monthName ${yearMonth.year}"
     }
 }
