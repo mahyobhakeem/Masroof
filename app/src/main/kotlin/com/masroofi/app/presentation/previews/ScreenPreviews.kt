@@ -8,12 +8,47 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.LayoutDirection
+import com.masroofi.app.domain.model.Category
+import com.masroofi.app.domain.model.TransactionItem
+import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.presentation.screens.home.HomeScreen
 import com.masroofi.app.presentation.screens.reports.ReportsScreen
 import com.masroofi.app.presentation.screens.settings.SettingsScreen
-import com.masroofi.app.presentation.screens.transactions.AddTransactionScreen
-import com.masroofi.app.presentation.screens.transactions.TransactionsHistoryScreen
+import com.masroofi.app.presentation.screens.transactions.AddTransactionContent
+import com.masroofi.app.presentation.screens.transactions.TransactionFormUiState
+import com.masroofi.app.presentation.screens.transactions.TransactionsHistoryContent
+import com.masroofi.app.presentation.screens.transactions.TransactionsHistoryUiState
 import com.masroofi.app.presentation.theme.MasroofiTheme
+import java.time.LocalDate
+
+private val sampleCategories = listOf(
+    Category("1", "طعام ومشروبات", TransactionType.EXPENSE, "fastfood"),
+    Category("2", "فواتير وخدمات", TransactionType.EXPENSE, "receipt"),
+    Category("3", "مواصلات ووقود", TransactionType.EXPENSE, "directions_car")
+)
+
+private val sampleTransactions = listOf(
+    TransactionItem(
+        id = "1",
+        type = TransactionType.EXPENSE,
+        amount = 2500,
+        categoryId = "1",
+        categoryName = "طعام ومشروبات",
+        categoryIconKey = "fastfood",
+        transactionDate = "2026-11-10",
+        note = "وجبة غداء"
+    ),
+    TransactionItem(
+        id = "2",
+        type = TransactionType.EXPENSE,
+        amount = 6000,
+        categoryId = "2",
+        categoryName = "فواتير وخدمات",
+        categoryIconKey = "receipt",
+        transactionDate = "2026-11-09",
+        note = "اشتراك إنترنت"
+    )
+)
 
 // 1. معاينة الشاشة الرئيسية (الوضع الفاتح)
 @Preview(name = "1. الرئيسية - وضع فاتح", showBackground = true, widthDp = 390, heightDp = 844)
@@ -48,7 +83,21 @@ fun AddTransactionScreenLightPreview() {
     MasroofiTheme(darkTheme = false) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Surface(modifier = Modifier.fillMaxSize()) {
-                AddTransactionScreen(onDismiss = {})
+                AddTransactionContent(
+                    uiState = TransactionFormUiState(
+                        availableCategories = sampleCategories,
+                        selectedCategory = sampleCategories.first(),
+                        amount = "5000",
+                        transactionDate = LocalDate.now()
+                    ),
+                    onTypeChange = {},
+                    onAmountChange = {},
+                    onCategorySelect = {},
+                    onDateSelect = {},
+                    onNoteChange = {},
+                    onSaveClick = {},
+                    onDismiss = {}
+                )
             }
         }
     }
@@ -61,7 +110,21 @@ fun AddTransactionScreenDarkPreview() {
     MasroofiTheme(darkTheme = true) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Surface(modifier = Modifier.fillMaxSize()) {
-                AddTransactionScreen(onDismiss = {})
+                AddTransactionContent(
+                    uiState = TransactionFormUiState(
+                        availableCategories = sampleCategories,
+                        selectedCategory = sampleCategories.first(),
+                        amount = "5000",
+                        transactionDate = LocalDate.now()
+                    ),
+                    onTypeChange = {},
+                    onAmountChange = {},
+                    onCategorySelect = {},
+                    onDateSelect = {},
+                    onNoteChange = {},
+                    onSaveClick = {},
+                    onDismiss = {}
+                )
             }
         }
     }
@@ -74,7 +137,18 @@ fun TransactionsHistoryScreenLightPreview() {
     MasroofiTheme(darkTheme = false) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Surface(modifier = Modifier.fillMaxSize()) {
-                TransactionsHistoryScreen()
+                TransactionsHistoryContent(
+                    uiState = TransactionsHistoryUiState(
+                        transactions = sampleTransactions,
+                        categories = sampleCategories
+                    ),
+                    onSearchQueryChange = {},
+                    onFilterIndexChange = {},
+                    onCategorySelect = {},
+                    onResetFilters = {},
+                    onEditTransaction = {},
+                    onDeleteTransaction = {}
+                )
             }
         }
     }
@@ -87,7 +161,18 @@ fun TransactionsHistoryScreenDarkPreview() {
     MasroofiTheme(darkTheme = true) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Surface(modifier = Modifier.fillMaxSize()) {
-                TransactionsHistoryScreen()
+                TransactionsHistoryContent(
+                    uiState = TransactionsHistoryUiState(
+                        transactions = sampleTransactions,
+                        categories = sampleCategories
+                    ),
+                    onSearchQueryChange = {},
+                    onFilterIndexChange = {},
+                    onCategorySelect = {},
+                    onResetFilters = {},
+                    onEditTransaction = {},
+                    onDeleteTransaction = {}
+                )
             }
         }
     }

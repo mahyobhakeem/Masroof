@@ -25,11 +25,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.masroofi.app.MasroofiApplication
 import com.masroofi.app.presentation.screens.home.HomeScreen
 import com.masroofi.app.presentation.screens.reports.ReportsScreen
 import com.masroofi.app.presentation.screens.settings.SettingsScreen
 import com.masroofi.app.presentation.screens.transactions.AddTransactionScreen
+import com.masroofi.app.presentation.screens.transactions.TransactionFormViewModel
+import com.masroofi.app.presentation.screens.transactions.TransactionFormViewModelFactory
 import com.masroofi.app.presentation.screens.transactions.TransactionsHistoryScreen
+import com.masroofi.app.presentation.screens.transactions.TransactionsHistoryViewModel
+import com.masroofi.app.presentation.screens.transactions.TransactionsHistoryViewModelFactory
 import com.masroofi.app.presentation.theme.TextSecondary
 
 // تعداد شاشات التطبيق الرئيسية
@@ -50,6 +57,24 @@ fun MasroofiApp(
     onToggleDarkMode: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val app = context.applicationContext as MasroofiApplication
+    val container = app.container
+
+    val formViewModel: TransactionFormViewModel = viewModel(
+        factory = TransactionFormViewModelFactory(
+            transactionRepository = container.transactionRepository,
+            categoryRepository = container.categoryRepository
+        )
+    )
+
+    val historyViewModel: TransactionsHistoryViewModel = viewModel(
+        factory = TransactionsHistoryViewModelFactory(
+            transactionRepository = container.transactionRepository,
+            categoryRepository = container.categoryRepository
+        )
+    )
+
     var currentScreen by remember { mutableStateOf(AppScreen.HOME) }
     var showAddTransactionSheet by remember { mutableStateOf(false) }
 
@@ -61,7 +86,10 @@ fun MasroofiApp(
                 MasroofiBottomNavigationBar(
                     currentScreen = currentScreen,
                     onScreenSelected = { currentScreen = it },
-                    onAddClick = { showAddTransactionSheet = true }
+                    onAddClick = {
+                        formViewModel.initForAdd()
+                        showAddTransactionSheet = true
+                    }
                 )
             }
         }
@@ -79,7 +107,13 @@ fun MasroofiApp(
                     AppScreen.HOME -> HomeScreen(
                         onNavigateToTransactions = { currentScreen = AppScreen.TRANSACTIONS }
                     )
-                    AppScreen.TRANSACTIONS -> TransactionsHistoryScreen()
+                    AppScreen.TRANSACTIONS -> TransactionsHistoryScreen(
+                        viewModel = historyViewModel,
+                        onEditTransaction = { transaction ->
+                            formViewModel.initForEdit(transaction)
+                            showAddTransactionSheet = true
+                        }
+                    )
                     AppScreen.REPORTS -> ReportsScreen()
                     AppScreen.SETTINGS -> SettingsScreen(
                         isDarkMode = isDarkMode,
@@ -88,13 +122,14 @@ fun MasroofiApp(
                 }
             }
 
-            // شاشة إضافة عملية جديدة
+            // شاشة إضافة / تعديل العملية المالية
             if (showAddTransactionSheet) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
                     AddTransactionScreen(
+                        viewModel = formViewModel,
                         onDismiss = { showAddTransactionSheet = false }
                     )
                 }

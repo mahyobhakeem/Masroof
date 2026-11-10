@@ -41,6 +41,8 @@ fun MasroofiTextField(
     singleLine: Boolean = true,
     maxLines: Int = 1,
     readOnly: Boolean = false,
+    isError: Boolean = false,
+    supportingText: String? = null,
     onClick: (() -> Unit)? = null
 ) {
     val interactionModifier = if (onClick != null) {
@@ -58,6 +60,16 @@ fun MasroofiTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = interactionModifier,
+        isError = isError,
+        supportingText = supportingText?.let {
+            {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        },
         label = {
             Text(
                 text = label,
