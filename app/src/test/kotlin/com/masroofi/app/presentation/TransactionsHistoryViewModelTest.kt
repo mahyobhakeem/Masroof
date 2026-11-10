@@ -282,5 +282,7 @@ private class FakeHistoryCatRepo(initialCategories: List<Category>) : CategoryRe
         return Result.success(Unit)
     }
 
+    override suspend fun getTransactionCountForCategory(id: String): Int = 0
+
     override suspend fun seedDefaultCategories(): Result<Unit> = Result.success(Unit)
 }

@@ -8,19 +8,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.LayoutDirection
+import com.masroofi.app.data.preferences.ThemeMode
 import com.masroofi.app.domain.calculations.CategoryExpenseSummary
 import com.masroofi.app.domain.calculations.FinancialSummary
 import com.masroofi.app.domain.calculations.MonthlyComparisonItem
 import com.masroofi.app.domain.calculations.MonthlyReportData
 import com.masroofi.app.domain.calculations.WeeklySpendingItem
 import com.masroofi.app.domain.model.Category
+import com.masroofi.app.domain.model.MonthlyBudget
 import com.masroofi.app.domain.model.TransactionItem
 import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.presentation.screens.home.HomeScreenContent
 import com.masroofi.app.presentation.screens.home.HomeUiState
 import com.masroofi.app.presentation.screens.reports.ReportsContent
 import com.masroofi.app.presentation.screens.reports.ReportsUiState
-import com.masroofi.app.presentation.screens.settings.SettingsScreen
+import com.masroofi.app.presentation.screens.settings.SettingsContent
+import com.masroofi.app.presentation.screens.settings.SettingsUiState
 import com.masroofi.app.presentation.screens.transactions.AddTransactionContent
 import com.masroofi.app.presentation.screens.transactions.TransactionFormUiState
 import com.masroofi.app.presentation.screens.transactions.TransactionsHistoryContent
@@ -296,6 +299,16 @@ fun ReportsScreenDarkPreview() {
     }
 }
 
+private val sampleSettingsUiState = SettingsUiState(
+    themeMode = ThemeMode.SYSTEM,
+    currentMonthBudget = 100000L,
+    allBudgets = listOf(
+        MonthlyBudget("b1", "2026-11", 100000L),
+        MonthlyBudget("b2", "2026-10", 90000L)
+    ),
+    allCategories = sampleCategories
+)
+
 // 5. معاينة شاشة الإعدادات (الوضع الفاتح)
 @Preview(name = "5. الإعدادات - وضع فاتح", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
@@ -303,7 +316,26 @@ fun SettingsScreenLightPreview() {
     MasroofiTheme(darkTheme = false) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Surface(modifier = Modifier.fillMaxSize()) {
-                SettingsScreen(isDarkMode = false, onToggleDarkMode = {})
+                SettingsContent(
+                    uiState = sampleSettingsUiState,
+                    onSetThemeMode = {},
+                    onOpenBudgetManagement = {},
+                    onCloseBudgetManagement = {},
+                    onOpenEditBudget = {},
+                    onCloseEditBudget = {},
+                    onSaveBudget = { _, _ -> },
+                    onOpenCategoryManagement = {},
+                    onCloseCategoryManagement = {},
+                    onToggleCategoryActive = {},
+                    onOpenAddCategory = {},
+                    onOpenEditCategory = {},
+                    onDeleteCategory = {},
+                    onSaveCategory = { _, _, _, _ -> },
+                    onCloseAddEditCategoryDialog = {},
+                    onOpenAboutDialog = {},
+                    onCloseAboutDialog = {},
+                    onClearMessages = {}
+                )
             }
         }
     }
@@ -316,7 +348,26 @@ fun SettingsScreenDarkPreview() {
     MasroofiTheme(darkTheme = true) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Surface(modifier = Modifier.fillMaxSize()) {
-                SettingsScreen(isDarkMode = true, onToggleDarkMode = {})
+                SettingsContent(
+                    uiState = sampleSettingsUiState.copy(themeMode = ThemeMode.DARK),
+                    onSetThemeMode = {},
+                    onOpenBudgetManagement = {},
+                    onCloseBudgetManagement = {},
+                    onOpenEditBudget = {},
+                    onCloseEditBudget = {},
+                    onSaveBudget = { _, _ -> },
+                    onOpenCategoryManagement = {},
+                    onCloseCategoryManagement = {},
+                    onToggleCategoryActive = {},
+                    onOpenAddCategory = {},
+                    onOpenEditCategory = {},
+                    onDeleteCategory = {},
+                    onSaveCategory = { _, _, _, _ -> },
+                    onCloseAddEditCategoryDialog = {},
+                    onOpenAboutDialog = {},
+                    onCloseAboutDialog = {},
+                    onClearMessages = {}
+                )
             }
         }
     }

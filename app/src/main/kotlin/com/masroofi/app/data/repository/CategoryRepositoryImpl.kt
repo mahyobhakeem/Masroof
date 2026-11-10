@@ -80,6 +80,10 @@ class CategoryRepositoryImpl(
         categoryDao.setCategoryActive(id, isActive)
     }
 
+    override suspend fun getTransactionCountForCategory(id: String): Int {
+        return categoryDao.countTransactionsForCategory(id)
+    }
+
     override suspend fun deleteCategory(id: String): Result<Unit> = runCatching {
         val count = categoryDao.countTransactionsForCategory(id)
         if (count > 0) {

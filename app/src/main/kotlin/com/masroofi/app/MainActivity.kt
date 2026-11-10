@@ -8,6 +8,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
+import com.masroofi.app.data.preferences.ThemeMode
 import com.masroofi.app.presentation.navigation.MasroofiApp
 import com.masroofi.app.presentation.theme.MasroofiTheme
 
@@ -16,16 +17,20 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            val app = application as MasroofiApplication
+            val themeMode by app.container.preferencesManager.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
             val systemInDark = isSystemInDarkTheme()
-            var isDarkMode by remember { mutableStateOf(systemInDark) }
 
-            MasroofiTheme(darkTheme = isDarkMode) {
+            val isDarkTheme = when (themeMode) {
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+                ThemeMode.SYSTEM -> systemInDark
+            }
+
+            MasroofiTheme(darkTheme = isDarkTheme) {
                 // إجبار اتجاه الواجهة بالكامل لدعم اللغة العربية وتخطيط RTL
                 CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                    MasroofiApp(
-                        isDarkMode = isDarkMode,
-                        onToggleDarkMode = { isDarkMode = it }
-                    )
+                    MasroofiApp(isDarkMode = isDarkTheme)
                 }
             }
         }

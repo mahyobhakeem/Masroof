@@ -35,6 +35,8 @@ import com.masroofi.app.presentation.screens.reports.ReportsScreen
 import com.masroofi.app.presentation.screens.reports.ReportsViewModel
 import com.masroofi.app.presentation.screens.reports.ReportsViewModelFactory
 import com.masroofi.app.presentation.screens.settings.SettingsScreen
+import com.masroofi.app.presentation.screens.settings.SettingsViewModel
+import com.masroofi.app.presentation.screens.settings.SettingsViewModelFactory
 import com.masroofi.app.presentation.screens.transactions.AddTransactionScreen
 import com.masroofi.app.presentation.screens.transactions.TransactionFormViewModel
 import com.masroofi.app.presentation.screens.transactions.TransactionFormViewModelFactory
@@ -57,8 +59,8 @@ enum class AppScreen(
 
 @Composable
 fun MasroofiApp(
-    isDarkMode: Boolean,
-    onToggleDarkMode: (Boolean) -> Unit,
+    isDarkMode: Boolean = false,
+    onToggleDarkMode: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -90,6 +92,15 @@ fun MasroofiApp(
     val reportsViewModel: ReportsViewModel = viewModel(
         factory = ReportsViewModelFactory(
             getMonthlyReportUseCase = container.getMonthlyReportUseCase
+        )
+    )
+
+    val settingsViewModel: SettingsViewModel = viewModel(
+        factory = SettingsViewModelFactory(
+            preferencesManager = container.preferencesManager,
+            categoryRepository = container.categoryRepository,
+            monthlyBudgetRepository = container.monthlyBudgetRepository,
+            transactionRepository = container.transactionRepository
         )
     )
 
@@ -141,8 +152,7 @@ fun MasroofiApp(
                         viewModel = reportsViewModel
                     )
                     AppScreen.SETTINGS -> SettingsScreen(
-                        isDarkMode = isDarkMode,
-                        onToggleDarkMode = onToggleDarkMode
+                        viewModel = settingsViewModel
                     )
                 }
             }

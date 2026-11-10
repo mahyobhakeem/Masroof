@@ -53,4 +53,25 @@ object CategoryIconHelper {
             else -> PrimaryGreen
         }
     }
+
+    /**
+     * قائمة مفاتيح الأيقونات المتاحة للاختيار عند إضافة أو تعديل تصنيف مالي
+     */
+    val selectableIcons: List<String> = listOf(
+        "fastfood",
+        "directions_car",
+        "shopping_bag",
+        "wifi",
+        "receipt",
+        "home",
+        "local_hospital",
+        "school",
+        "sports_esports",
+        "payments",
+        "more_time",
+        "trending_up",
+        "card_giftcard",
+        "savings",
+        "more_horiz"
+    )
 }

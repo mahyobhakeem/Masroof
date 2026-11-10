@@ -15,5 +15,6 @@ interface CategoryRepository {
     suspend fun updateCategory(category: Category): Result<Unit>
     suspend fun setCategoryActive(id: String, isActive: Boolean): Result<Unit>
     suspend fun deleteCategory(id: String): Result<Unit>
+    suspend fun getTransactionCountForCategory(id: String): Int
     suspend fun seedDefaultCategories(): Result<Unit>
 }
