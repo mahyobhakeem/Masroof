@@ -8,10 +8,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.LayoutDirection
+import com.masroofi.app.domain.calculations.CategoryExpenseSummary
+import com.masroofi.app.domain.calculations.FinancialSummary
 import com.masroofi.app.domain.model.Category
 import com.masroofi.app.domain.model.TransactionItem
 import com.masroofi.app.domain.model.TransactionType
-import com.masroofi.app.presentation.screens.home.HomeScreen
+import com.masroofi.app.presentation.screens.home.HomeScreenContent
+import com.masroofi.app.presentation.screens.home.HomeUiState
 import com.masroofi.app.presentation.screens.reports.ReportsScreen
 import com.masroofi.app.presentation.screens.settings.SettingsScreen
 import com.masroofi.app.presentation.screens.transactions.AddTransactionContent
@@ -20,6 +23,7 @@ import com.masroofi.app.presentation.screens.transactions.TransactionsHistoryCon
 import com.masroofi.app.presentation.screens.transactions.TransactionsHistoryUiState
 import com.masroofi.app.presentation.theme.MasroofiTheme
 import java.time.LocalDate
+import java.time.YearMonth
 
 private val sampleCategories = listOf(
     Category("1", "طعام ومشروبات", TransactionType.EXPENSE, "fastfood"),
@@ -50,6 +54,27 @@ private val sampleTransactions = listOf(
     )
 )
 
+private val sampleHomeUiState = HomeUiState(
+    selectedMonth = YearMonth.of(2026, 11),
+    summary = FinancialSummary(
+        yearMonth = YearMonth.of(2026, 11),
+        totalDailyExpenses = 2500,
+        totalMonthlyExpenses = 35000,
+        totalMonthlyIncome = 75000,
+        monthlyBudget = 100000,
+        remainingBudget = 65000,
+        isBudgetExceeded = false,
+        consumptionPercentage = 35,
+        netCashflow = 40000
+    ),
+    topCategories = listOf(
+        CategoryExpenseSummary("1", "طعام ومشروبات", "fastfood", "#FF6B6B", 15000, 43),
+        CategoryExpenseSummary("2", "فواتير وخدمات", "receipt", "#4ECDC4", 12000, 34),
+        CategoryExpenseSummary("3", "مواصلات ووقود", "directions_car", "#FFD166", 8000, 23)
+    ),
+    recentTransactions = sampleTransactions
+)
+
 // 1. معاينة الشاشة الرئيسية (الوضع الفاتح)
 @Preview(name = "1. الرئيسية - وضع فاتح", showBackground = true, widthDp = 390, heightDp = 844)
 @Composable
@@ -57,7 +82,14 @@ fun HomeScreenLightPreview() {
     MasroofiTheme(darkTheme = false) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Surface(modifier = Modifier.fillMaxSize()) {
-                HomeScreen(onNavigateToTransactions = {})
+                HomeScreenContent(
+                    uiState = sampleHomeUiState,
+                    onNavigateToTransactions = {},
+                    onPreviousMonth = {},
+                    onNextMonth = {},
+                    onOpenBudgetDialog = {},
+                    onTransactionClick = {}
+                )
             }
         }
     }
@@ -70,7 +102,14 @@ fun HomeScreenDarkPreview() {
     MasroofiTheme(darkTheme = true) {
         CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
             Surface(modifier = Modifier.fillMaxSize()) {
-                HomeScreen(onNavigateToTransactions = {})
+                HomeScreenContent(
+                    uiState = sampleHomeUiState,
+                    onNavigateToTransactions = {},
+                    onPreviousMonth = {},
+                    onNextMonth = {},
+                    onOpenBudgetDialog = {},
+                    onTransactionClick = {}
+                )
             }
         }
     }

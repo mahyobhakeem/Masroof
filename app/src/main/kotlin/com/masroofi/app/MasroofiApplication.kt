@@ -10,6 +10,8 @@ import com.masroofi.app.data.repository.TransactionRepositoryImpl
 import com.masroofi.app.domain.repository.CategoryRepository
 import com.masroofi.app.domain.repository.MonthlyBudgetRepository
 import com.masroofi.app.domain.repository.TransactionRepository
+import com.masroofi.app.domain.usecase.GetMonthlyFinancialSummaryUseCase
+import com.masroofi.app.domain.usecase.SetMonthlyBudgetUseCase
 
 /**
  * واجهة حاوية الاعتماديات المركزية لتطبيق مصروفي (AppContainer)
@@ -21,6 +23,8 @@ interface AppContainer {
     val transactionRepository: TransactionRepository
     val monthlyBudgetRepository: MonthlyBudgetRepository
     val preferencesManager: PreferencesManager
+    val getMonthlyFinancialSummaryUseCase: GetMonthlyFinancialSummaryUseCase
+    val setMonthlyBudgetUseCase: SetMonthlyBudgetUseCase
 }
 
 /**
@@ -46,6 +50,14 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val preferencesManager: PreferencesManager by lazy {
         PreferencesManager(context)
+    }
+
+    override val getMonthlyFinancialSummaryUseCase: GetMonthlyFinancialSummaryUseCase by lazy {
+        GetMonthlyFinancialSummaryUseCase(transactionRepository, monthlyBudgetRepository)
+    }
+
+    override val setMonthlyBudgetUseCase: SetMonthlyBudgetUseCase by lazy {
+        SetMonthlyBudgetUseCase(monthlyBudgetRepository)
     }
 }
 

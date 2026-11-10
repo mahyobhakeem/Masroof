@@ -21,6 +21,28 @@ object FormatUtils {
     fun formatPercentage(percentage: Int): String {
         return "$percentage%"
     }
+
+    /**
+     * تنسيق الشهر والسنة باللغة العربية الفصحى
+     */
+    fun formatYearMonth(yearMonth: java.time.YearMonth): String {
+        val monthName = when (yearMonth.monthValue) {
+            1 -> "يناير"
+            2 -> "فبراير"
+            3 -> "مارس"
+            4 -> "أبريل"
+            5 -> "مايو"
+            6 -> "يونيو"
+            7 -> "يوليو"
+            8 -> "أغسطس"
+            9 -> "سبتمبر"
+            10 -> "أكتوبر"
+            11 -> "نوفمبر"
+            12 -> "ديسمبر"
+            else -> yearMonth.month.name
+        }
+        return "$monthName ${yearMonth.year}"
+    }
 }
 
 /**
@@ -28,4 +50,11 @@ object FormatUtils {
  */
 fun formatNumber(number: Long): String {
     return String.format(Locale.getDefault(), "%,d", number)
+}
+
+/**
+ * دالة مساعدة عامة لتنسيق الشهر والسنة
+ */
+fun formatYearMonth(yearMonth: java.time.YearMonth): String {
+    return FormatUtils.formatYearMonth(yearMonth)
 }

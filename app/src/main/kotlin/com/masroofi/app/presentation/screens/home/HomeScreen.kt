@@ -1,18 +1,26 @@
 package com.masroofi.app.presentation.screens.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PieChart
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -20,15 +28,125 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.masroofi.app.domain.model.MockData
-import com.masroofi.app.domain.model.Transaction
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.masroofi.app.domain.calculations.CategoryExpenseSummary
+import com.masroofi.app.domain.calculations.FinancialSummary
+import com.masroofi.app.domain.model.TransactionItem
+import com.masroofi.app.domain.model.TransactionType
+import com.masroofi.app.presentation.components.CategoryIconHelper
 import com.masroofi.app.presentation.components.MasroofiItemCard
+import com.masroofi.app.presentation.screens.transactions.TransactionDetailsBottomSheet
 import com.masroofi.app.presentation.theme.*
 import com.masroofi.app.utils.formatNumber
+import com.masroofi.app.utils.formatYearMonth
+import java.time.YearMonth
 
+/**
+ * الشاشة الرئيسية المرتبطة بنموذج العرض (Stateful HomeScreen)
+ */
 @Composable
 fun HomeScreen(
+    viewModel: HomeViewModel,
     onNavigateToTransactions: () -> Unit,
+    onEditTransaction: (TransactionItem) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    HomeScreenContent(
+        uiState = uiState,
+        onNavigateToTransactions = onNavigateToTransactions,
+        onPreviousMonth = viewModel::selectPreviousMonth,
+        onNextMonth = viewModel::selectNextMonth,
+        onOpenBudgetDialog = viewModel::openBudgetDialog,
+        onTransactionClick = viewModel::onTransactionClick,
+        modifier = modifier
+    )
+
+    // نافذة تحديد الميزانية
+    if (uiState.isBudgetDialogOpen) {
+        SetBudgetDialog(
+            yearMonth = uiState.selectedMonth,
+            amountInput = uiState.budgetInput,
+            errorMessage = uiState.budgetError,
+            isSaving = uiState.isSavingBudget,
+            onAmountChange = viewModel::onBudgetInputChanged,
+            onSave = viewModel::saveMonthlyBudget,
+            onDismiss = viewModel::dismissBudgetDialog
+        )
+    }
+
+    // نافذة تفاصيل العملية السفلية
+    uiState.selectedTransactionForDetails?.let { transaction ->
+        TransactionDetailsBottomSheet(
+            transaction = transaction,
+            onDismiss = viewModel::dismissTransactionDetails,
+            onEdit = {
+                viewModel.dismissTransactionDetails()
+                onEditTransaction(transaction)
+            },
+            onDelete = {
+                viewModel.requestDeleteTransaction(transaction)
+            }
+        )
+    }
+
+    // نافذة تأكيد حذف العملية
+    if (uiState.isDeleteDialogOpen && uiState.transactionToDelete != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissDeleteDialog,
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = {
+                Text(
+                    text = "تأكيد حذف العملية",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    text = "هل أنت متأكد من رغبتك في حذف هذه العملية بشكل نهائي؟ لا يمكن التراجع عن هذا الإجراء.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = viewModel::confirmDeleteTransaction,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(
+                        text = "نعم، حذف",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onError
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::dismissDeleteDialog) {
+                    Text(
+                        text = "إلغاء",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        )
+    }
+}
+
+/**
+ * المكون الصامت لواجهة الشاشة الرئيسية (Stateless HomeScreenContent)
+ */
+@Composable
+fun HomeScreenContent(
+    uiState: HomeUiState,
+    onNavigateToTransactions: () -> Unit,
+    onPreviousMonth: () -> Unit,
+    onNextMonth: () -> Unit,
+    onOpenBudgetDialog: () -> Unit,
+    onTransactionClick: (TransactionItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -40,13 +158,20 @@ fun HomeScreen(
     ) {
         // ترويسة الشاشة: اسم التطبيق ومحدد الشهر
         item {
-            HomeHeaderSection()
+            HomeHeaderSection(
+                selectedMonth = uiState.selectedMonth,
+                onPreviousMonth = onPreviousMonth,
+                onNextMonth = onNextMonth
+            )
             Spacer(modifier = Modifier.height(16.dp))
         }
 
         // بطاقة الملخص المالي الشاملة
         item {
-            FinancialSummaryCard()
+            FinancialSummaryCard(
+                summary = uiState.summary,
+                onOpenBudgetDialog = onOpenBudgetDialog
+            )
             Spacer(modifier = Modifier.height(24.dp))
         }
 
@@ -68,7 +193,11 @@ fun HomeScreen(
         }
 
         item {
-            TopCategoriesGrid()
+            if (uiState.topCategories.isEmpty()) {
+                EmptyTopCategoriesCard()
+            } else {
+                TopCategoriesGrid(topCategories = uiState.topCategories)
+            }
             Spacer(modifier = Modifier.height(24.dp))
         }
 
@@ -87,32 +216,47 @@ fun HomeScreen(
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "أحدث المعاملات المالية المسجلة في التطبيق",
+                        text = "أحدث المعاملات المالية المسجلة لشهر ${formatYearMonth(uiState.selectedMonth)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
                 }
-                TextButton(onClick = onNavigateToTransactions) {
-                    Text(
-                        text = "عرض الكل",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                if (uiState.recentTransactions.isNotEmpty()) {
+                    TextButton(onClick = onNavigateToTransactions) {
+                        Text(
+                            text = "عرض الكل",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        items(MockData.transactionsList.take(5)) { transaction ->
-            TransactionRowItem(transaction = transaction)
+        if (uiState.recentTransactions.isEmpty()) {
+            item {
+                EmptyRecentTransactionsCard()
+            }
+        } else {
+            items(uiState.recentTransactions, key = { it.id }) { transaction ->
+                HomeTransactionRowItem(
+                    transaction = transaction,
+                    onClick = { onTransactionClick(transaction) }
+                )
+            }
         }
     }
 }
 
-// الترويسة العلوية
+// الترويسة العلوية مع محدد الشهر التفاعلي
 @Composable
-private fun HomeHeaderSection() {
+private fun HomeHeaderSection(
+    selectedMonth: YearMonth,
+    onPreviousMonth: () -> Unit,
+    onNextMonth: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -126,13 +270,13 @@ private fun HomeHeaderSection() {
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
-                text = "إدارة المصروفات الشخصية",
+                text = "إدارة المصروفات والميزانية الشخصية",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary
             )
         }
 
-        // محدد الشهر
+        // محدد الشهر التفاعلي
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,
@@ -140,22 +284,53 @@ private fun HomeHeaderSection() {
             modifier = Modifier.clip(RoundedCornerShape(20.dp))
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.CalendarMonth,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "نوفمبر 2026",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                // سهم الشهر السابق
+                IconButton(
+                    onClick = onPreviousMonth,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "الشهر السابق",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.padding(horizontal = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CalendarMonth,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = formatYearMonth(selectedMonth),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                // سهم الشهر التالي
+                IconButton(
+                    onClick = onNextMonth,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "الشهر التالي",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }
@@ -163,12 +338,15 @@ private fun HomeHeaderSection() {
 
 // بطاقة الملخص المالي
 @Composable
-private fun FinancialSummaryCard() {
+private fun FinancialSummaryCard(
+    summary: FinancialSummary,
+    onOpenBudgetDialog: () -> Unit
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp
+        tonalElevation = 2.dp
     ) {
         Column(
             modifier = Modifier
@@ -189,7 +367,7 @@ private fun FinancialSummaryCard() {
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${formatNumber(MockData.TOTAL_EXPENSES)} ريال",
+                        text = "${formatNumber(summary.totalMonthlyExpenses)} ريال",
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -214,38 +392,103 @@ private fun FinancialSummaryCard() {
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // شريط استهلاك الميزانية
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "الميزانية: ${formatNumber(MockData.MONTHLY_BUDGET)} ريال",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-                Text(
-                    text = "المتبقي: ${formatNumber(MockData.REMAINING_BUDGET)} ريال (${MockData.CONSUMPTION_PERCENTAGE}%)",
-                    style = MaterialTheme.typography.bodySmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+            // قسم الميزانية الشهرية
+            if (summary.monthlyBudget == null) {
+                // حالة عدم وجود ميزانية للشهر الحالي
+                Surface(
+                    onClick = onOpenBudgetDialog,
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "لم تحدد ميزانية لهذا الشهر",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Text(
+                            text = "تحديد ميزانية",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            } else {
+                // حالة وجود ميزانية
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { onOpenBudgetDialog() }
+                    ) {
+                        Text(
+                            text = "الميزانية: ${formatNumber(summary.monthlyBudget)} ريال",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextSecondary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "تعديل الميزانية",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+
+                    if (summary.isBudgetExceeded) {
+                        Text(
+                            text = "تجاوز الميزانية: ${formatNumber(summary.budgetExcessAmount)} ريال (${summary.consumptionPercentage}%)",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = ExpenseRed
+                        )
+                    } else {
+                        Text(
+                            text = "المتبقي: ${formatNumber(summary.remainingBudget ?: 0L)} ريال (${summary.consumptionPercentage}%)",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val progress = if (summary.isBudgetExceeded) 1.0f else (summary.consumptionPercentage / 100f).coerceIn(0f, 1f)
+                val progressColor = if (summary.isBudgetExceeded) ExpenseRed else MaterialTheme.colorScheme.primary
+
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = progressColor,
+                    trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LinearProgressIndicator(
-                progress = { MockData.CONSUMPTION_PERCENTAGE / 100f },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp)),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-            )
-
             Spacer(modifier = Modifier.height(20.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), thickness = 1.dp)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f), thickness = 1.dp)
             Spacer(modifier = Modifier.height(16.dp))
 
             // قسم إيرادات الشهر ومصروفات اليوم
@@ -277,7 +520,7 @@ private fun FinancialSummaryCard() {
                             color = TextSecondary
                         )
                         Text(
-                            text = "${formatNumber(MockData.TOTAL_INCOME)} ريال",
+                            text = "${formatNumber(summary.totalMonthlyIncome)} ريال",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = IncomeGreen
@@ -309,7 +552,7 @@ private fun FinancialSummaryCard() {
                             color = TextSecondary
                         )
                         Text(
-                            text = "${formatNumber(MockData.TODAY_EXPENSES)} ريال",
+                            text = "${formatNumber(summary.totalDailyExpenses)} ريال",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = ExpenseRed
@@ -321,20 +564,68 @@ private fun FinancialSummaryCard() {
     }
 }
 
+// حالة فارغة لأبرز التصنيفات
+@Composable
+private fun EmptyTopCategoriesCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PieChart,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = "لا توجد مصروفات مسجلة",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "أضف مصروفات في هذا الشهر لعرض توزيع النفقات حسب التصنيف",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+        }
+    }
+}
+
 // شبكة أبرز التصنيفات
 @Composable
-private fun TopCategoriesGrid() {
+private fun TopCategoriesGrid(topCategories: List<CategoryExpenseSummary>) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        val rows = MockData.topCategories.chunked(2)
+        val rows = topCategories.chunked(2)
         rows.forEach { rowCategories ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 rowCategories.forEach { category ->
+                    val catIcon = CategoryIconHelper.getIcon(category.iconKey)
+                    val catColor = CategoryIconHelper.getColor(category.colorHex)
+
                     Surface(
                         modifier = Modifier
                             .weight(1f)
@@ -353,20 +644,20 @@ private fun TopCategoriesGrid() {
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(category.color.copy(alpha = 0.15f)),
+                                    .background(catColor.copy(alpha = 0.15f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = category.icon,
+                                    imageVector = catIcon,
                                     contentDescription = null,
-                                    tint = category.color,
+                                    tint = catColor,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(
-                                    text = category.name,
+                                    text = category.categoryName,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface,
@@ -389,32 +680,77 @@ private fun TopCategoriesGrid() {
     }
 }
 
-// عنصر قائمة العملية المالية
+// حالة فارغة لآخر العمليات
 @Composable
-fun TransactionRowItem(transaction: Transaction) {
+private fun EmptyRecentTransactionsCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = "لا توجد معاملات مسجلة في هذا الشهر",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "اضغط على زر (+) في الأسفل لإضافة أول عملية مالية",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+        }
+    }
+}
+
+// عنصر قائمة العملية المالية في الشاشة الرئيسية
+@Composable
+fun HomeTransactionRowItem(
+    transaction: TransactionItem,
+    onClick: () -> Unit
+) {
+    val catIcon = CategoryIconHelper.getIcon(transaction.categoryIconKey)
+    val catColor = CategoryIconHelper.getColor(null)
+    val isExpense = transaction.type == TransactionType.EXPENSE
+    val amountPrefix = if (isExpense) "-" else "+"
+    val amountColor = if (isExpense) ExpenseRed else IncomeGreen
+
     MasroofiItemCard(
-        title = transaction.title,
-        subtitle = "${transaction.date} • ${transaction.category}",
-        icon = transaction.categoryIcon,
-        iconColor = transaction.categoryColor,
+        title = transaction.categoryName ?: "عملية مالية",
+        subtitle = "${transaction.transactionDate}${if (!transaction.note.isNullOrBlank()) " • ${transaction.note}" else ""}",
+        icon = catIcon,
+        iconColor = catColor,
+        onClick = onClick,
         trailingContent = {
             Column(horizontalAlignment = Alignment.End) {
-                val amountPrefix = if (transaction.isExpense) "-" else "+"
-                val amountColor = if (transaction.isExpense) ExpenseRed else IncomeGreen
                 Text(
                     text = "$amountPrefix ${formatNumber(transaction.amount)} ريال",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = amountColor
                 )
-                if (transaction.notes.isNotEmpty()) {
-                    Text(
-                        text = transaction.notes,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary,
-                        maxLines = 1
-                    )
-                }
             }
         }
     )

@@ -29,6 +29,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.masroofi.app.MasroofiApplication
 import com.masroofi.app.presentation.screens.home.HomeScreen
+import com.masroofi.app.presentation.screens.home.HomeViewModel
+import com.masroofi.app.presentation.screens.home.HomeViewModelFactory
 import com.masroofi.app.presentation.screens.reports.ReportsScreen
 import com.masroofi.app.presentation.screens.settings.SettingsScreen
 import com.masroofi.app.presentation.screens.transactions.AddTransactionScreen
@@ -75,6 +77,14 @@ fun MasroofiApp(
         )
     )
 
+    val homeViewModel: HomeViewModel = viewModel(
+        factory = HomeViewModelFactory(
+            getMonthlyFinancialSummaryUseCase = container.getMonthlyFinancialSummaryUseCase,
+            setMonthlyBudgetUseCase = container.setMonthlyBudgetUseCase,
+            transactionRepository = container.transactionRepository
+        )
+    )
+
     var currentScreen by remember { mutableStateOf(AppScreen.HOME) }
     var showAddTransactionSheet by remember { mutableStateOf(false) }
 
@@ -105,7 +115,12 @@ fun MasroofiApp(
             ) { targetScreen ->
                 when (targetScreen) {
                     AppScreen.HOME -> HomeScreen(
-                        onNavigateToTransactions = { currentScreen = AppScreen.TRANSACTIONS }
+                        viewModel = homeViewModel,
+                        onNavigateToTransactions = { currentScreen = AppScreen.TRANSACTIONS },
+                        onEditTransaction = { transaction ->
+                            formViewModel.initForEdit(transaction)
+                            showAddTransactionSheet = true
+                        }
                     )
                     AppScreen.TRANSACTIONS -> TransactionsHistoryScreen(
                         viewModel = historyViewModel,
