@@ -1,0 +1,30 @@
+package com.masroofi.app.domain.model
+
+import java.time.LocalDate
+
+/**
+ * نموذج نطاق العمل للعملية المالية الحقيقية
+ */
+data class TransactionItem(
+    val id: String,
+    val type: TransactionType,
+    val amount: Long, // بالريال اليمني أكبر من صفر دائماً
+    val categoryId: String,
+    val categoryName: String? = null,
+    val categoryIconKey: String? = null,
+    val transactionDate: String, // بصيغة ISO YYYY-MM-DD
+    val note: String? = null,
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
+) {
+    init {
+        require(amount > 0) { "يجب أن يكون المبلغ المالي أكبر من الصفر دائماً" }
+    }
+
+    /**
+     * تحويل تاريخ العملية إلى كائن LocalDate
+     */
+    fun toLocalDate(): LocalDate {
+        return LocalDate.parse(transactionDate)
+    }
+}

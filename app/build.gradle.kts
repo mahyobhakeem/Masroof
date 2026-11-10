@@ -2,6 +2,7 @@ plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.ksp)
 }
 
 android {
@@ -39,6 +40,10 @@ android {
   }
 }
 
+ksp {
+  arg("room.generateKotlin", "false")
+}
+
 dependencies {
   val composeBom = platform(libs.androidx.compose.bom)
   implementation(composeBom)
@@ -67,6 +72,7 @@ dependencies {
   // Local tests: jUnit, coroutines, Android runner
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
+  testImplementation(libs.androidx.room.testing)
 
   // Instrumented tests: jUnit rules and runners
   androidTestImplementation(libs.androidx.test.core)
@@ -83,6 +89,7 @@ dependencies {
   // Room Database
   implementation(libs.androidx.room.runtime)
   implementation(libs.androidx.room.ktx)
+  ksp(libs.androidx.room.compiler)
 
   // DataStore Preferences
   implementation(libs.androidx.datastore.preferences)
