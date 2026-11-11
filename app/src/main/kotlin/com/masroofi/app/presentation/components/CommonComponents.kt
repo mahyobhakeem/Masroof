@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -38,6 +39,7 @@ fun MasroofiTextField(
     leadingIcon: ImageVector? = null,
     trailingText: String? = null,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
     singleLine: Boolean = true,
     maxLines: Int = 1,
     readOnly: Boolean = false,
@@ -122,7 +124,8 @@ fun MasroofiTextField(
         singleLine = singleLine,
         maxLines = maxLines,
         readOnly = readOnly,
-        keyboardOptions = keyboardOptions
+        keyboardOptions = keyboardOptions,
+        visualTransformation = visualTransformation
     )
 }
 

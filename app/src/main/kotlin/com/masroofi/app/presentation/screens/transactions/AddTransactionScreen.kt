@@ -30,6 +30,7 @@ import com.masroofi.app.domain.model.Category
 import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.presentation.components.CategoryIconHelper
 import com.masroofi.app.presentation.components.MasroofiTextField
+import com.masroofi.app.presentation.components.ThousandsSeparatorVisualTransformation
 import com.masroofi.app.presentation.theme.*
 import java.time.Instant
 import java.time.LocalDate
@@ -152,6 +153,7 @@ fun AddTransactionContent(
                     trailingText = "ريال يمني YER",
                     leadingIcon = Icons.Default.Payments,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    visualTransformation = ThousandsSeparatorVisualTransformation(),
                     isError = uiState.amountError != null,
                     supportingText = uiState.amountError
                 )

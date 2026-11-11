@@ -11,6 +11,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.masroofi.app.presentation.components.MasroofiTextField
+import com.masroofi.app.presentation.components.ThousandsSeparatorVisualTransformation
 import com.masroofi.app.utils.formatYearMonth
 import java.time.YearMonth
 
@@ -64,9 +65,10 @@ fun SetBudgetDialog(
                     value = amountInput,
                     onValueChange = onAmountChange,
                     label = "مبلغ الميزانية",
-                    placeholder = "مثال: 100000",
+                    placeholder = "مثال: 100,000",
                     trailingText = "ريال",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    visualTransformation = ThousandsSeparatorVisualTransformation(),
                     isError = errorMessage != null,
                     supportingText = errorMessage
                 )

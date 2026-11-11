@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.masroofi.app.domain.model.MonthlyBudget
 import com.masroofi.app.presentation.components.MasroofiTextField
+import com.masroofi.app.presentation.components.ThousandsSeparatorVisualTransformation
 import com.masroofi.app.presentation.theme.IncomeGreen
 import com.masroofi.app.presentation.theme.PrimaryGreen
 import com.masroofi.app.presentation.theme.TextSecondary
@@ -389,8 +390,9 @@ private fun EditBudgetDialog(
                         if (digits.isNotEmpty()) errorText = null
                     },
                     label = "الميزانية الشهرية (ريال يمني)",
-                    placeholder = "مثال: 150000",
+                    placeholder = "مثال: 150,000",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    visualTransformation = ThousandsSeparatorVisualTransformation(),
                     isError = errorText != null,
                     supportingText = errorText
                 )
