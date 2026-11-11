@@ -12,6 +12,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Search
@@ -27,8 +30,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.masroofi.app.domain.model.TransactionItem
 import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.presentation.components.CategoryIconHelper
+import com.masroofi.app.presentation.components.MasroofDatePickerDialog
+import com.masroofi.app.presentation.components.MasroofDateRangeDialog
 import com.masroofi.app.presentation.components.MasroofiTextField
 import com.masroofi.app.presentation.theme.*
+import com.masroofi.app.utils.FormatUtils
 import com.masroofi.app.utils.formatNumber
 
 @Composable
@@ -53,12 +59,32 @@ fun TransactionsHistoryScreen(
         onFilterIndexChange = { viewModel.setFilterIndex(it) },
         onCategorySelect = { viewModel.setSelectedCategoryId(it) },
         onDatePeriodSelect = { viewModel.setDatePeriod(it) },
+        onEditSpecificDay = { viewModel.openDatePicker() },
+        onEditCustomRange = { viewModel.openDateRangePicker() },
         onResetFilters = { viewModel.resetFilters() },
         onEditTransaction = onEditTransaction,
         onDeleteTransaction = { viewModel.deleteTransaction(it.id) },
         snackbarHostState = snackbarHostState,
         modifier = modifier
     )
+
+    if (uiState.isDatePickerOpen) {
+        MasroofDatePickerDialog(
+            initialDate = uiState.specificDay,
+            onDateSelected = viewModel::setSpecificDay,
+            onDismiss = viewModel::dismissDatePicker,
+            title = "تحديد يوم معين للتصفية"
+        )
+    }
+
+    if (uiState.isDateRangePickerOpen) {
+        MasroofDateRangeDialog(
+            initialStartDate = uiState.customStartDate,
+            initialEndDate = uiState.customEndDate,
+            onRangeSelected = viewModel::setCustomRange,
+            onDismiss = viewModel::dismissDateRangePicker
+        )
+    }
 }
 
 @Composable
@@ -68,6 +94,8 @@ fun TransactionsHistoryContent(
     onFilterIndexChange: (Int) -> Unit,
     onCategorySelect: (String?) -> Unit,
     onDatePeriodSelect: (DateRangeFilter) -> Unit,
+    onEditSpecificDay: () -> Unit = {},
+    onEditCustomRange: () -> Unit = {},
     onResetFilters: () -> Unit,
     onEditTransaction: (TransactionItem) -> Unit,
     onDeleteTransaction: (TransactionItem) -> Unit,
@@ -208,6 +236,117 @@ fun TransactionsHistoryContent(
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
+
+                // شارة توضيحية لتاريخ اليوم المحدد أو الفترة المخصصة مع زر التعديل والإلغاء
+                if (uiState.selectedDatePeriod == DateRangeFilter.SPECIFIC_DAY) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable(onClick = onEditSpecificDay)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarToday,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "اليوم المختار: ${FormatUtils.formatArabicDate(uiState.specificDay, true)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "تغيير",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                            IconButton(
+                                onClick = { onDatePeriodSelect(DateRangeFilter.ALL) },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "إلغاء التصفية",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                if (uiState.selectedDatePeriod == DateRangeFilter.CUSTOM_RANGE) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable(onClick = onEditCustomRange)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DateRange,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "فترة مخصصة: من ${uiState.customStartDate} إلى ${uiState.customEndDate}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "تعديل الفترة",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                            IconButton(
+                                onClick = { onDatePeriodSelect(DateRangeFilter.ALL) },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "إلغاء التصفية",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
 
             // شريط تصفية التصنيفات الأفقي (يعتمد categoryId وليس الاسم)

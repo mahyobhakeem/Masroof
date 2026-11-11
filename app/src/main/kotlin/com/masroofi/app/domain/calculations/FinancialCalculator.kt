@@ -303,4 +303,85 @@ object FinancialCalculator {
             hasExpenses = totalExpenses > 0L
         )
     }
+
+    /**
+     * تصفية العمليات المالية بدقة بين تاريخين (شاملة يوم البداية والنهاية)
+     */
+    fun filterTransactionsByDateRange(
+        transactions: List<TransactionItem>,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): List<TransactionItem> {
+        return transactions.filter { tx ->
+            try {
+                val date = LocalDate.parse(tx.transactionDate)
+                !date.isBefore(startDate) && !date.isAfter(endDate)
+            } catch (_: Exception) {
+                false
+            }
+        }
+    }
+
+    /**
+     * حساب إجمالي المصروفات لفترة زمنية محددة بين تاريخين
+     */
+    fun calculateExpensesForRange(
+        transactions: List<TransactionItem>,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): Long {
+        return filterTransactionsByDateRange(transactions, startDate, endDate)
+            .filter { it.type == TransactionType.EXPENSE }
+            .sumOf { it.amount }
+    }
+
+    /**
+     * حساب إجمالي الإيرادات لفترة زمنية محددة بين تاريخين
+     */
+    fun calculateIncomeForRange(
+        transactions: List<TransactionItem>,
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): Long {
+        return filterTransactionsByDateRange(transactions, startDate, endDate)
+            .filter { it.type == TransactionType.INCOME }
+            .sumOf { it.amount }
+    }
+
+    /**
+     * بناء تقرير مالي وإحصائي لفترة زمنية مرنة (يوم محدد، أسبوع، أو فترة مخصصة)
+     */
+    fun buildPeriodReport(
+        startDate: LocalDate,
+        endDate: LocalDate,
+        periodTransactions: List<TransactionItem>,
+        allTransactions: List<TransactionItem> = emptyList(),
+        currentDate: LocalDate = LocalDate.now()
+    ): MonthlyReportData {
+        val totalExpenses = calculateMonthlyExpenses(periodTransactions)
+        val totalIncome = calculateMonthlyIncome(periodTransactions)
+        val netCashflow = calculateNetCashflow(totalIncome, totalExpenses)
+
+        val daysCount = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate) + 1
+        val averageDaily = if (totalExpenses > 0L && daysCount > 0) {
+            (totalExpenses.toDouble() / daysCount.toDouble()).roundToLong()
+        } else 0L
+
+        val categoryBreakdown = calculateTopCategories(periodTransactions, totalExpenses)
+
+        return MonthlyReportData(
+            yearMonth = YearMonth.from(startDate),
+            totalExpenses = totalExpenses,
+            totalIncome = totalIncome,
+            netCashflow = netCashflow,
+            averageDailyExpense = averageDaily,
+            averageWeeklyExpense = if (totalExpenses > 0L) (totalExpenses.toDouble() / 4.0).roundToLong() else 0L,
+            categoryBreakdown = categoryBreakdown,
+            weeklySpendingList = emptyList(),
+            peakSpendingPeriod = null,
+            monthlyComparisons = emptyList(),
+            monthChangePercentage = null,
+            hasExpenses = totalExpenses > 0L
+        )
+    }
 }

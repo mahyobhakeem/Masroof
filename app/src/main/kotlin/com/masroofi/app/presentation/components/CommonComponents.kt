@@ -299,3 +299,275 @@ fun MasroofiExpandableCard(
         }
     }
 }
+
+/**
+ * شريط التبديل الزمني المعتمد للأوضاع الأربعة: اليوم، الأسبوع، الشهر، فترة مخصصة
+ */
+@Composable
+fun TimePeriodSegmentedSwitch(
+    selectedMode: com.masroofi.app.domain.model.TimePeriodMode,
+    onModeSelected: (com.masroofi.app.domain.model.TimePeriodMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            com.masroofi.app.domain.model.TimePeriodMode.values().forEach { mode ->
+                val isSelected = mode == selectedMode
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    tonalElevation = if (isSelected) 2.dp else 0.dp,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { onModeSelected(mode) }
+                ) {
+                    Box(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = mode.title,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * نافذة حوار التقويم لاختيار يوم محدد بدقة (MasroofDatePickerDialog)
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MasroofDatePickerDialog(
+    initialDate: java.time.LocalDate,
+    onDateSelected: (java.time.LocalDate) -> Unit,
+    onDismiss: () -> Unit,
+    title: String = "اختيار التاريخ"
+) {
+    val initialMillis = remember(initialDate) {
+        initialDate.atStartOfDay(java.time.ZoneId.of("UTC")).toInstant().toEpochMilli()
+    }
+    val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val selectedLocalDate = java.time.Instant.ofEpochMilli(millis)
+                            .atZone(java.time.ZoneId.of("UTC"))
+                            .toLocalDate()
+                        onDateSelected(selectedLocalDate)
+                    }
+                    onDismiss()
+                }
+            ) {
+                Text("تأكيد", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("إلغاء", color = TextSecondary)
+            }
+        },
+        shape = RoundedCornerShape(20.dp),
+        colors = DatePickerDefaults.colors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        DatePicker(state = datePickerState)
+    }
+}
+
+/**
+ * نافذة حوار متكاملة لاختيار فترة زمنية مخصصة بين تاريخين (من تاريخ - إلى تاريخ)
+ */
+@Composable
+fun MasroofDateRangeDialog(
+    initialStartDate: java.time.LocalDate,
+    initialEndDate: java.time.LocalDate,
+    onRangeSelected: (java.time.LocalDate, java.time.LocalDate) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var startDate by remember { mutableStateOf(initialStartDate) }
+    var endDate by remember { mutableStateOf(initialEndDate) }
+    var isSelectingStart by remember { mutableStateOf(false) }
+    var isSelectingEnd by remember { mutableStateOf(false) }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "تحديد فترة زمنية مخصصة",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // اختصارات سريعة
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val now = java.time.LocalDate.now()
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            startDate = now.minusDays(6)
+                            endDate = now
+                        },
+                        label = { Text("آخر 7 أيام", fontSize = 11.sp) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            startDate = now.minusDays(29)
+                            endDate = now
+                        },
+                        label = { Text("آخر 30 يوماً", fontSize = 11.sp) },
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = false,
+                        onClick = {
+                            val ym = java.time.YearMonth.now()
+                            startDate = ym.atDay(1)
+                            endDate = ym.atEndOfMonth()
+                        },
+                        label = { Text("هذا الشهر", fontSize = 11.sp) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // زر اختيار تاريخ البداية
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { isSelectingStart = true }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("من تاريخ:", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                            Text(
+                                text = com.masroofi.app.utils.FormatUtils.formatArabicDate(startDate),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text("تعديل", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // زر اختيار تاريخ النهاية
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { isSelectingEnd = true }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text("إلى تاريخ:", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                            Text(
+                                text = com.masroofi.app.utils.FormatUtils.formatArabicDate(endDate),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Text("تعديل", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("إلغاء")
+                    }
+                    Button(
+                        onClick = {
+                            val finalStart = if (startDate.isAfter(endDate)) endDate else startDate
+                            val finalEnd = if (startDate.isAfter(endDate)) startDate else endDate
+                            onRangeSelected(finalStart, finalEnd)
+                            onDismiss()
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("تطبيق الفترة")
+                    }
+                }
+            }
+        }
+    }
+
+    if (isSelectingStart) {
+        MasroofDatePickerDialog(
+            initialDate = startDate,
+            onDateSelected = { startDate = it },
+            onDismiss = { isSelectingStart = false },
+            title = "تحديد تاريخ البداية"
+        )
+    }
+
+    if (isSelectingEnd) {
+        MasroofDatePickerDialog(
+            initialDate = endDate,
+            onDateSelected = { endDate = it },
+            onDismiss = { isSelectingEnd = false },
+            title = "تحديد تاريخ النهاية"
+        )
+    }
+}

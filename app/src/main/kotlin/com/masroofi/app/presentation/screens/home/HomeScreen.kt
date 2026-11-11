@@ -1,5 +1,6 @@
 package com.masroofi.app.presentation.screens.home
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,11 +14,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.TrendingDown
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,15 +34,22 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.masroofi.app.domain.calculations.CategoryExpenseSummary
 import com.masroofi.app.domain.calculations.FinancialSummary
+import com.masroofi.app.domain.model.TimePeriodMode
 import com.masroofi.app.domain.model.TransactionItem
 import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.presentation.components.CategoryIconHelper
+import com.masroofi.app.presentation.components.MasroofDatePickerDialog
+import com.masroofi.app.presentation.components.MasroofDateRangeDialog
 import com.masroofi.app.presentation.components.MasroofiItemCard
+import com.masroofi.app.presentation.components.TimePeriodSegmentedSwitch
 import com.masroofi.app.presentation.screens.transactions.TransactionDetailsBottomSheet
 import com.masroofi.app.presentation.theme.*
+import com.masroofi.app.utils.FormatUtils
 import com.masroofi.app.utils.formatNumber
 import com.masroofi.app.utils.formatYearMonth
+import java.time.LocalDate
 import java.time.YearMonth
+import kotlin.math.abs
 
 /**
  * الشاشة الرئيسية المرتبطة بنموذج العرض (Stateful HomeScreen)
@@ -56,12 +66,55 @@ fun HomeScreen(
     HomeScreenContent(
         uiState = uiState,
         onNavigateToTransactions = onNavigateToTransactions,
-        onPreviousMonth = viewModel::selectPreviousMonth,
-        onNextMonth = viewModel::selectNextMonth,
+        onPeriodModeSelect = viewModel::setPeriodMode,
+        onPrevious = {
+            when (uiState.selectedPeriodMode) {
+                TimePeriodMode.DAILY -> viewModel.selectPreviousDay()
+                TimePeriodMode.WEEKLY -> viewModel.selectPreviousWeek()
+                TimePeriodMode.MONTHLY -> viewModel.selectPreviousMonth()
+                TimePeriodMode.CUSTOM_RANGE -> viewModel.openCustomRangePicker()
+            }
+        },
+        onNext = {
+            when (uiState.selectedPeriodMode) {
+                TimePeriodMode.DAILY -> viewModel.selectNextDay()
+                TimePeriodMode.WEEKLY -> viewModel.selectNextWeek()
+                TimePeriodMode.MONTHLY -> viewModel.selectNextMonth()
+                TimePeriodMode.CUSTOM_RANGE -> viewModel.openCustomRangePicker()
+            }
+        },
+        onDateClick = {
+            when (uiState.selectedPeriodMode) {
+                TimePeriodMode.DAILY -> viewModel.openDatePicker()
+                TimePeriodMode.CUSTOM_RANGE -> viewModel.openCustomRangePicker()
+                else -> {}
+            }
+        },
+        onBackToToday = { viewModel.setSelectedDate(LocalDate.now()) },
         onOpenBudgetDialog = viewModel::openBudgetDialog,
         onTransactionClick = viewModel::onTransactionClick,
         modifier = modifier
     )
+
+    // نافذة اختيار تاريخ يوم محدد
+    if (uiState.isDatePickerOpen) {
+        MasroofDatePickerDialog(
+            initialDate = uiState.selectedDate,
+            onDateSelected = viewModel::setSelectedDate,
+            onDismiss = viewModel::dismissDatePicker,
+            title = "اختيار يوم محدد للاستعراض"
+        )
+    }
+
+    // نافذة اختيار فترة مخصصة (من - إلى)
+    if (uiState.isCustomRangePickerOpen) {
+        MasroofDateRangeDialog(
+            initialStartDate = uiState.customStartDate,
+            initialEndDate = uiState.customEndDate,
+            onRangeSelected = viewModel::setCustomRange,
+            onDismiss = viewModel::dismissCustomRangePicker
+        )
+    }
 
     // نافذة تحديد الميزانية
     if (uiState.isBudgetDialogOpen) {
@@ -143,10 +196,15 @@ fun HomeScreen(
 fun HomeScreenContent(
     uiState: HomeUiState,
     onNavigateToTransactions: () -> Unit,
-    onPreviousMonth: () -> Unit,
-    onNextMonth: () -> Unit,
-    onOpenBudgetDialog: () -> Unit,
-    onTransactionClick: (TransactionItem) -> Unit,
+    onPeriodModeSelect: (TimePeriodMode) -> Unit = {},
+    onPrevious: () -> Unit = {},
+    onNext: () -> Unit = {},
+    onDateClick: () -> Unit = {},
+    onBackToToday: () -> Unit = {},
+    onOpenBudgetDialog: () -> Unit = {},
+    onTransactionClick: (TransactionItem) -> Unit = {},
+    onPreviousMonth: () -> Unit = onPrevious,
+    onNextMonth: () -> Unit = onNext,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -156,26 +214,62 @@ fun HomeScreenContent(
             .padding(horizontal = 16.dp),
         contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp)
     ) {
-        // ترويسة الشاشة: اسم التطبيق ومحدد الشهر
+        // 1. الترويسة العلوية الثابتة
         item {
-            HomeHeaderSection(
-                selectedMonth = uiState.selectedMonth,
-                onPreviousMonth = onPreviousMonth,
-                onNextMonth = onNextMonth
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "مصروف | Masroof",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "إدارة المصروفات والميزانية الشخصية",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+            }
+            Spacer(modifier = Modifier.height(14.dp))
         }
 
-        // بطاقة الملخص المالي الشاملة
+        // 2. شريط التبديل الزمني (اليوم / الأسبوع / الشهر / فترة مخصصة)
         item {
-            FinancialSummaryCard(
-                summary = uiState.summary,
-                onOpenBudgetDialog = onOpenBudgetDialog
+            TimePeriodSegmentedSwitch(
+                selectedMode = uiState.selectedPeriodMode,
+                onModeSelected = onPeriodModeSelect
             )
+            Spacer(modifier = Modifier.height(10.dp))
+        }
+
+        // 3. شريط التنقل الزمني والتاريخ التفاعلي
+        item {
+            HomeDateNavigator(
+                uiState = uiState,
+                onPrevious = onPrevious,
+                onNext = onNext,
+                onDateClick = onDateClick,
+                onBackToToday = onBackToToday
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+        }
+
+        // 4. بطاقة الملخص المالي بحسب الوضع المختار
+        item {
+            if (uiState.selectedPeriodMode == TimePeriodMode.MONTHLY) {
+                FinancialSummaryCard(
+                    summary = uiState.summary,
+                    onOpenBudgetDialog = onOpenBudgetDialog
+                )
+            } else {
+                PeriodFinancialSummaryCard(
+                    uiState = uiState,
+                    onBackToToday = onBackToToday
+                )
+            }
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // قسم أبرز التصنيفات
+        // 5. قسم أبرز التصنيفات في الفترة المحددة
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -188,6 +282,13 @@ fun HomeScreenContent(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
+                if (uiState.topCategories.isNotEmpty()) {
+                    Text(
+                        text = "${uiState.topCategories.size} تصنيفات",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(12.dp))
         }
@@ -201,24 +302,35 @@ fun HomeScreenContent(
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // قسم آخر خمس عمليات
+        // 6. قسم العمليات المسجلة في الفترة
         item {
+            val periodLabel = when (uiState.selectedPeriodMode) {
+                TimePeriodMode.DAILY -> FormatUtils.formatArabicDate(uiState.selectedDate, true)
+                TimePeriodMode.WEEKLY -> {
+                    val (wStart, wEnd) = FormatUtils.getWeekRangeSaturday(uiState.selectedWeekStart)
+                    FormatUtils.formatDateRange(wStart, wEnd)
+                }
+                TimePeriodMode.MONTHLY -> formatYearMonth(uiState.selectedMonth)
+                TimePeriodMode.CUSTOM_RANGE -> FormatUtils.formatDateRange(uiState.customStartDate, uiState.customEndDate)
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "آخر خمس عمليات",
+                        text = if (uiState.selectedPeriodMode == TimePeriodMode.MONTHLY) "آخر العمليات" else "العمليات المسجلة",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "أحدث المعاملات المالية المسجلة لشهر ${formatYearMonth(uiState.selectedMonth)}",
+                        text = "المعاملات المالية للفترة: $periodLabel",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
+                        color = TextSecondary,
+                        maxLines = 1
                     )
                 }
                 if (uiState.recentTransactions.isNotEmpty()) {
@@ -254,93 +366,305 @@ fun HomeScreenContent(
     }
 }
 
-// الترويسة العلوية مع محدد الشهر التفاعلي
+/**
+ * شريط التنقل الزمني والتاريخ التفاعلي مع دعم النقر لفتح التقويم
+ */
 @Composable
-private fun HomeHeaderSection(
-    selectedMonth: YearMonth,
-    onPreviousMonth: () -> Unit,
-    onNextMonth: () -> Unit
+private fun HomeDateNavigator(
+    uiState: HomeUiState,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onDateClick: () -> Unit,
+    onBackToToday: () -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column {
-            Text(
-                text = "مصروف | Masroof",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = "إدارة المصروفات والميزانية الشخصية",
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
-            )
-        }
-
-        // محدد الشهر التفاعلي
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp,
-            modifier = Modifier.clip(RoundedCornerShape(20.dp))
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // سهم الشهر السابق
+            if (uiState.selectedPeriodMode != TimePeriodMode.CUSTOM_RANGE) {
                 IconButton(
-                    onClick = onPreviousMonth,
-                    modifier = Modifier.size(32.dp)
+                    onClick = onPrevious,
+                    modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "الشهر السابق",
+                        contentDescription = "السابق",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
+            } else {
+                Spacer(modifier = Modifier.width(8.dp))
+            }
 
+            // محتوى التاريخ التفاعلي
+            val isClickable = uiState.selectedPeriodMode == TimePeriodMode.DAILY || uiState.selectedPeriodMode == TimePeriodMode.CUSTOM_RANGE
+
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = if (isClickable) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else Color.Transparent,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .then(if (isClickable) Modifier.clickable(onClick = onDateClick) else Modifier)
+            ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 6.dp),
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Default.CalendarMonth,
+                        imageVector = when (uiState.selectedPeriodMode) {
+                            TimePeriodMode.DAILY -> Icons.Default.Today
+                            TimePeriodMode.WEEKLY -> Icons.Default.CalendarMonth
+                            TimePeriodMode.MONTHLY -> Icons.Default.CalendarMonth
+                            TimePeriodMode.CUSTOM_RANGE -> Icons.Default.DateRange
+                        },
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
+
+                    val displayText = when (uiState.selectedPeriodMode) {
+                        TimePeriodMode.DAILY -> {
+                            val isToday = uiState.selectedDate == LocalDate.now()
+                            if (isToday) {
+                                "اليوم (${FormatUtils.formatArabicDate(uiState.selectedDate)})"
+                            } else {
+                                FormatUtils.formatArabicDate(uiState.selectedDate, true)
+                            }
+                        }
+                        TimePeriodMode.WEEKLY -> {
+                            val (wStart, wEnd) = FormatUtils.getWeekRangeSaturday(uiState.selectedWeekStart)
+                            FormatUtils.formatDateRange(wStart, wEnd)
+                        }
+                        TimePeriodMode.MONTHLY -> formatYearMonth(uiState.selectedMonth)
+                        TimePeriodMode.CUSTOM_RANGE -> FormatUtils.formatDateRange(uiState.customStartDate, uiState.customEndDate)
+                    }
+
                     Text(
-                        text = formatYearMonth(selectedMonth),
-                        style = MaterialTheme.typography.labelMedium,
+                        text = displayText,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    if (isClickable) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "تغيير",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
+
+            if (uiState.selectedPeriodMode != TimePeriodMode.CUSTOM_RANGE) {
+                IconButton(
+                    onClick = onNext,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "التالي",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+        }
+    }
+}
+
+/**
+ * بطاقة الملخص المالي المرنة للأوضاع غير الشهرية (اليوم، الأسبوع، الفترة المخصصة)
+ */
+@Composable
+private fun PeriodFinancialSummaryCard(
+    uiState: HomeUiState,
+    onBackToToday: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            val periodTitle = when (uiState.selectedPeriodMode) {
+                TimePeriodMode.DAILY -> if (uiState.selectedDate == LocalDate.now()) "إجمالي مصروفات اليوم" else "مصروفات يوم ${uiState.selectedDate}"
+                TimePeriodMode.WEEKLY -> "إجمالي مصروفات الأسبوع"
+                TimePeriodMode.CUSTOM_RANGE -> "إجمالي مصروفات الفترة"
+                TimePeriodMode.MONTHLY -> "إجمالي المصروفات"
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column {
+                    Text(
+                        text = periodTitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "${formatNumber(uiState.periodTotalExpenses)} ريال",
+                        style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
-                // سهم الشهر التالي
-                IconButton(
-                    onClick = onNextMonth,
-                    modifier = Modifier.size(32.dp)
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    modifier = Modifier.size(46.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "الشهر التالي",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.AccountBalanceWallet,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), thickness = 1.dp)
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // صفي الإيرادات وصافي التدفق
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // إجمالي الإيرادات
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = CircleShape,
+                        color = IncomeGreen.copy(alpha = 0.15f),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                contentDescription = null,
+                                tint = IncomeGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "إجمالي الإيرادات",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary
+                        )
+                        Text(
+                            text = "+${formatNumber(uiState.periodTotalIncome)} ريال",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = IncomeGreen
+                        )
+                    }
+                }
+
+                // صافي التدفق
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val isPositive = uiState.periodNetCashflow >= 0L
+                    val color = if (isPositive) IncomeGreen else MaterialTheme.colorScheme.error
+
+                    Surface(
+                        shape = CircleShape,
+                        color = color.copy(alpha = 0.15f),
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (isPositive) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
+                                contentDescription = null,
+                                tint = color,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "صافي التدفق",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary
+                        )
+                        Text(
+                            text = "${if (isPositive) "+" else "-"}${formatNumber(abs(uiState.periodNetCashflow))} ريال",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = color
+                        )
+                    }
+                }
+            }
+
+            // زر العودة لليوم الحالي إن كان التاريخ المختار ليس اليوم
+            if (uiState.selectedPeriodMode == TimePeriodMode.DAILY && uiState.selectedDate != LocalDate.now()) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable(onClick = onBackToToday)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "العودة لليوم الحالي (${LocalDate.now()})",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-// بطاقة الملخص المالي
+// بطاقة الملخص المالي الشهري القياسية
 @Composable
 private fun FinancialSummaryCard(
     summary: FinancialSummary,
@@ -378,154 +702,146 @@ private fun FinancialSummaryCard(
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .size(46.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                    modifier = Modifier.size(46.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.AccountBalanceWallet,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(26.dp)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.AccountBalanceWallet,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // قسم الميزانية الشهرية
-            if (summary.monthlyBudget == null) {
-                // حالة عدم وجود ميزانية للشهر الحالي
+            // شريط وحالة الميزانية الشهرية
+            if (summary.monthlyBudget != null) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = if (summary.isBudgetExceeded) {
+                                    "تجاوز الميزانية: ${formatNumber(summary.budgetExcessAmount)} ريال (${summary.consumptionPercentage}%)"
+                                } else {
+                                    "المتبقي: ${formatNumber(summary.remainingBudget ?: 0L)} ريال (${summary.consumptionPercentage}%)"
+                                },
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (summary.isBudgetExceeded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable(onClick = onOpenBudgetDialog)
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "تعديل الميزانية",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "الميزانية: ${formatNumber(summary.monthlyBudget)} ريال",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    val progress = (summary.consumptionPercentage / 100f).coerceIn(0f, 1f)
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(3.dp)),
+                        color = if (summary.isBudgetExceeded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                }
+            } else {
                 Surface(
-                    onClick = onOpenBudgetDialog,
                     shape = RoundedCornerShape(12.dp),
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(onClick = onOpenBudgetDialog)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "لم تحدد ميزانية لهذا الشهر",
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
                         Text(
-                            text = "تحديد ميزانية",
+                            text = "لم تحدد ميزانية لهذا الشهر بعد",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "تحديد ميزانية +",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
-            } else {
-                // حالة وجود ميزانية
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.clickable { onOpenBudgetDialog() }
-                    ) {
-                        Text(
-                            text = "الميزانية: ${formatNumber(summary.monthlyBudget)} ريال",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = TextSecondary
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            imageVector = Icons.Default.Edit,
-                            contentDescription = "تعديل الميزانية",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-
-                    if (summary.isBudgetExceeded) {
-                        Text(
-                            text = "تجاوز الميزانية: ${formatNumber(summary.budgetExcessAmount)} ريال (${summary.consumptionPercentage}%)",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = ExpenseRed
-                        )
-                    } else {
-                        Text(
-                            text = "المتبقي: ${formatNumber(summary.remainingBudget ?: 0L)} ريال (${summary.consumptionPercentage}%)",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                val progress = if (summary.isBudgetExceeded) 1.0f else (summary.consumptionPercentage / 100f).coerceIn(0f, 1f)
-                val progressColor = if (summary.isBudgetExceeded) ExpenseRed else MaterialTheme.colorScheme.primary
-
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .clip(RoundedCornerShape(4.dp)),
-                    color = progressColor,
-                    trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f), thickness = 1.dp)
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), thickness = 1.dp)
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // قسم إيرادات الشهر ومصروفات اليوم
+            // مؤشرات إيرادات الشهر ومصروفات اليوم
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 // إيرادات الشهر
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(IncomeGreen.copy(alpha = 0.12f)),
-                        contentAlignment = Alignment.Center
+                    Surface(
+                        shape = CircleShape,
+                        color = IncomeGreen.copy(alpha = 0.15f),
+                        modifier = Modifier.size(36.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                            contentDescription = null,
-                            tint = IncomeGreen,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                contentDescription = null,
+                                tint = IncomeGreen,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
                             text = "إيرادات الشهر",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.labelSmall,
                             color = TextSecondary
                         )
                         Text(
                             text = "${formatNumber(summary.totalMonthlyIncome)} ريال",
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = IncomeGreen
                         )
@@ -534,80 +850,35 @@ private fun FinancialSummaryCard(
 
                 // مصروفات اليوم
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(ExpenseRed.copy(alpha = 0.12f)),
-                        contentAlignment = Alignment.Center
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
+                        modifier = Modifier.size(36.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.TrendingDown,
-                            contentDescription = null,
-                            tint = ExpenseRed,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.TrendingDown,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
                             text = "مصروفات اليوم",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.labelSmall,
                             color = TextSecondary
                         )
                         Text(
                             text = "${formatNumber(summary.totalDailyExpenses)} ريال",
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = ExpenseRed
+                            color = MaterialTheme.colorScheme.error
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-// حالة فارغة لأبرز التصنيفات
-@Composable
-private fun EmptyTopCategoriesCard() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PieChart,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = "لا توجد مصروفات مسجلة",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "أضف مصروفات في هذا الشهر لعرض توزيع النفقات حسب التصنيف",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
             }
         }
     }
@@ -620,142 +891,233 @@ private fun TopCategoriesGrid(topCategories: List<CategoryExpenseSummary>) {
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        val rows = topCategories.chunked(2)
-        rows.forEach { rowCategories ->
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+        topCategories.take(4).forEach { category ->
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                rowCategories.forEach { category ->
-                    val catIcon = CategoryIconHelper.getIcon(category.iconKey)
-                    val catColor = CategoryIconHelper.getColor(category.colorHex)
-
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp)),
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 1.dp
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            modifier = Modifier.size(36.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .background(catColor.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
+                            Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = catIcon,
+                                    imageVector = CategoryIconHelper.getIcon(category.iconKey),
                                     contentDescription = null,
-                                    tint = catColor,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = category.categoryName,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1
-                                )
-                                Text(
-                                    text = "${formatNumber(category.totalSpent)} ريال (${category.percentage}%)",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = TextSecondary
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = category.categoryName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "${category.transactionCount} عملية",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "${formatNumber(category.totalSpent)} ريال",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "${category.percentage}% من الإجمالي",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
-                if (rowCategories.size == 1) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
             }
         }
     }
 }
 
-// حالة فارغة لآخر العمليات
+// صف عنصر العملية المالية في القائمة
 @Composable
-private fun EmptyRecentTransactionsCard() {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 1.dp
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = "لا توجد معاملات مسجلة في هذا الشهر",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "اضغط على زر (+) في الأسفل لإضافة أول عملية مالية",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-            }
-        }
-    }
-}
-
-// عنصر قائمة العملية المالية في الشاشة الرئيسية
-@Composable
-fun HomeTransactionRowItem(
+private fun HomeTransactionRowItem(
     transaction: TransactionItem,
     onClick: () -> Unit
 ) {
-    val catIcon = CategoryIconHelper.getIcon(transaction.categoryIconKey)
-    val catColor = CategoryIconHelper.getColor(null)
-    val isExpense = transaction.type == TransactionType.EXPENSE
-    val amountPrefix = if (isExpense) "-" else "+"
-    val amountColor = if (isExpense) ExpenseRed else IncomeGreen
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                val isExpense = transaction.type == TransactionType.EXPENSE
+                val iconTint = if (isExpense) MaterialTheme.colorScheme.error else IncomeGreen
+                val bgTint = if (isExpense) MaterialTheme.colorScheme.error.copy(alpha = 0.12f) else IncomeGreen.copy(alpha = 0.12f)
 
-    MasroofiItemCard(
-        title = transaction.categoryName ?: "عملية مالية",
-        subtitle = "${transaction.transactionDate}${if (!transaction.note.isNullOrBlank()) " • ${transaction.note}" else ""}",
-        icon = catIcon,
-        iconColor = catColor,
-        onClick = onClick,
-        trailingContent = {
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "$amountPrefix ${formatNumber(transaction.amount)} ريال",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = amountColor
-                )
+                Surface(
+                    shape = CircleShape,
+                    color = bgTint,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = CategoryIconHelper.getIcon(transaction.categoryIconKey ?: "category"),
+                            contentDescription = null,
+                            tint = iconTint,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column {
+                    Text(
+                        text = transaction.categoryName ?: "غير مصنف",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = transaction.transactionDate,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary
+                    )
+                }
             }
+
+            val isExpense = transaction.type == TransactionType.EXPENSE
+            val sign = if (isExpense) "-" else "+"
+            val amountColor = if (isExpense) MaterialTheme.colorScheme.onSurface else IncomeGreen
+
+            Text(
+                text = "$sign${formatNumber(transaction.amount)} ريال",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = amountColor
+            )
         }
-    )
+    }
+}
+
+@Composable
+private fun EmptyTopCategoriesCard() {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                modifier = Modifier.size(48.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.PieChart,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "لا توجد مصروفات مسجلة",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "أضف مصروفات في هذا الشهر لعرض توزيع النفقات حسب التصنيف",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmptyRecentTransactionsCard() {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 1.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                modifier = Modifier.size(48.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "لا توجد عمليات بعد",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "اضغط على زر (+) في الأسفل لإضافة أول عملية مالية",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary
+            )
+        }
+    }
 }

@@ -5,11 +5,16 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.masroofi.app.domain.calculations.CategoryExpenseSummary
+import com.masroofi.app.domain.calculations.FinancialCalculator
 import com.masroofi.app.domain.calculations.MonthlyReportData
+import com.masroofi.app.domain.model.ReportPeriodMode
+import com.masroofi.app.domain.repository.TransactionRepository
 import com.masroofi.app.domain.usecase.GetMonthlyReportUseCase
+import com.masroofi.app.utils.FormatUtils
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.YearMonth
 
 /**
@@ -17,57 +22,196 @@ import java.time.YearMonth
  */
 @Immutable
 data class ReportsUiState(
+    val periodMode: ReportPeriodMode = ReportPeriodMode.MONTHLY,
     val selectedYearMonth: YearMonth = YearMonth.now(),
+    val selectedDate: LocalDate = LocalDate.now(),
+    val customStartDate: LocalDate = LocalDate.now().minusDays(30),
+    val customEndDate: LocalDate = LocalDate.now(),
+    val periodLabel: String = "",
     val reportData: MonthlyReportData = MonthlyReportData(YearMonth.now()),
     val selectedCategoryForDetails: CategoryExpenseSummary? = null,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val showDatePicker: Boolean = false,
+    val showDateRangePicker: Boolean = false
 )
 
 /**
  * نموذج العرض لشاشة التقارير والإحصائيات (ReportsViewModel)
- * يتولى إدارة الشهر المختار والتفاعل مع المخططات البيانية
+ * يدعم الاستعراض والتحليل الزمني المرن: شهري، أسبوعي، يوم محدد، وفترة مخصصة
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class ReportsViewModel(
-    private val getMonthlyReportUseCase: GetMonthlyReportUseCase
+    private val getMonthlyReportUseCase: GetMonthlyReportUseCase,
+    private val transactionRepository: TransactionRepository
 ) : ViewModel() {
 
+    private val _periodMode = MutableStateFlow(ReportPeriodMode.MONTHLY)
     private val _selectedYearMonth = MutableStateFlow(YearMonth.now())
+    private val _selectedDate = MutableStateFlow(LocalDate.now())
+    private val _customStartDate = MutableStateFlow(LocalDate.now().minusDays(30))
+    private val _customEndDate = MutableStateFlow(LocalDate.now())
     private val _selectedCategoryForDetails = MutableStateFlow<CategoryExpenseSummary?>(null)
-    private val _uiState = MutableStateFlow(ReportsUiState())
+    private val _showDatePicker = MutableStateFlow(false)
+    private val _showDateRangePicker = MutableStateFlow(false)
 
+    private val _uiState = MutableStateFlow(ReportsUiState())
     val uiState: StateFlow<ReportsUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            _selectedYearMonth.flatMapLatest { ym ->
+            combine(
+                _periodMode,
+                _selectedYearMonth,
+                _selectedDate,
+                _customStartDate,
+                _customEndDate
+            ) { mode, ym, date, start, end ->
+                ReportsPeriodSettings(mode, ym, date, start, end)
+            }.combine(transactionRepository.getAllTransactions()) { settings, allTx ->
+                ReportsConfig(settings.mode, settings.ym, settings.date, settings.start, settings.end, allTx)
+            }.flatMapLatest { config ->
                 _selectedCategoryForDetails.value = null
-                getMonthlyReportUseCase(ym).combine(_selectedCategoryForDetails) { report, selectedCat ->
+                when (config.mode) {
+                    ReportPeriodMode.MONTHLY -> {
+                        getMonthlyReportUseCase(config.ym).map { report ->
+                            val label = FormatUtils.formatYearMonth(config.ym)
+                            Pair(label, report)
+                        }
+                    }
+                    ReportPeriodMode.WEEKLY -> {
+                        val (weekStart, weekEnd) = FormatUtils.getWeekRangeSaturday(config.date)
+                        val periodTx = FinancialCalculator.filterTransactionsByDateRange(config.allTx, weekStart, weekEnd)
+                        val report = FinancialCalculator.buildPeriodReport(weekStart, weekEnd, periodTx, config.allTx)
+                        val label = "أسبوع: ${FormatUtils.formatArabicDate(weekStart)} - ${FormatUtils.formatArabicDate(weekEnd)}"
+                        flowOf(Pair(label, report))
+                    }
+                    ReportPeriodMode.SPECIFIC_DAY -> {
+                        val periodTx = FinancialCalculator.filterTransactionsByDateRange(config.allTx, config.date, config.date)
+                        val report = FinancialCalculator.buildPeriodReport(config.date, config.date, periodTx, config.allTx)
+                        val label = "${FormatUtils.formatArabicDayOfWeek(config.date)}، ${FormatUtils.formatArabicDate(config.date)}"
+                        flowOf(Pair(label, report))
+                    }
+                    ReportPeriodMode.CUSTOM_RANGE -> {
+                        val periodTx = FinancialCalculator.filterTransactionsByDateRange(config.allTx, config.start, config.end)
+                        val report = FinancialCalculator.buildPeriodReport(config.start, config.end, periodTx, config.allTx)
+                        val label = FormatUtils.formatDateRange(config.start, config.end)
+                        flowOf(Pair(label, report))
+                    }
+                }.combine(_selectedCategoryForDetails) { (label, report), selectedCat ->
                     ReportsUiState(
-                        selectedYearMonth = ym,
+                        periodMode = config.mode,
+                        selectedYearMonth = config.ym,
+                        selectedDate = config.date,
+                        customStartDate = config.start,
+                        customEndDate = config.end,
+                        periodLabel = label,
                         reportData = report,
                         selectedCategoryForDetails = selectedCat,
-                        isLoading = false
+                        isLoading = false,
+                        showDatePicker = _showDatePicker.value,
+                        showDateRangePicker = _showDateRangePicker.value
                     )
                 }
             }.collect { state ->
-                _uiState.value = state
+                _uiState.value = state.copy(
+                    showDatePicker = _showDatePicker.value,
+                    showDateRangePicker = _showDateRangePicker.value
+                )
             }
         }
     }
 
+    private data class ReportsPeriodSettings(
+        val mode: ReportPeriodMode,
+        val ym: YearMonth,
+        val date: LocalDate,
+        val start: LocalDate,
+        val end: LocalDate
+    )
+
+    private data class ReportsConfig(
+        val mode: ReportPeriodMode,
+        val ym: YearMonth,
+        val date: LocalDate,
+        val start: LocalDate,
+        val end: LocalDate,
+        val allTx: List<com.masroofi.app.domain.model.TransactionItem>
+    )
+
     /**
-     * الانتقال إلى الشهر السابق
+     * تغيير وضع التحليل الزمني
      */
-    fun selectPreviousMonth() {
-        _selectedYearMonth.update { it.minusMonths(1) }
+    fun setPeriodMode(mode: ReportPeriodMode) {
+        _periodMode.value = mode
     }
 
     /**
-     * الانتقال إلى الشهر اللاحق
+     * الانتقال إلى الفترة السابقة (شهر، أسبوع، أو يوم سابق)
      */
-    fun selectNextMonth() {
-        _selectedYearMonth.update { it.plusMonths(1) }
+    fun selectPrevious() {
+        when (_periodMode.value) {
+            ReportPeriodMode.MONTHLY -> _selectedYearMonth.update { it.minusMonths(1) }
+            ReportPeriodMode.WEEKLY -> _selectedDate.update { it.minusWeeks(1) }
+            ReportPeriodMode.SPECIFIC_DAY -> _selectedDate.update { it.minusDays(1) }
+            ReportPeriodMode.CUSTOM_RANGE -> _showDateRangePicker.value = true
+        }
+    }
+
+    fun selectPreviousMonth() = selectPrevious()
+
+    /**
+     * الانتقال إلى الفترة اللاحقة (شهر، أسبوع، أو يوم لاحق)
+     */
+    fun selectNext() {
+        when (_periodMode.value) {
+            ReportPeriodMode.MONTHLY -> _selectedYearMonth.update { it.plusMonths(1) }
+            ReportPeriodMode.WEEKLY -> _selectedDate.update { it.plusWeeks(1) }
+            ReportPeriodMode.SPECIFIC_DAY -> _selectedDate.update { it.plusDays(1) }
+            ReportPeriodMode.CUSTOM_RANGE -> _showDateRangePicker.value = true
+        }
+    }
+
+    fun selectNextMonth() = selectNext()
+
+    /**
+     * فتح نافذة التقويم بحسب الوضع الحالي
+     */
+    fun onDateLabelClick() {
+        when (_periodMode.value) {
+            ReportPeriodMode.MONTHLY -> {}
+            ReportPeriodMode.WEEKLY,
+            ReportPeriodMode.SPECIFIC_DAY -> _showDatePicker.value = true
+            ReportPeriodMode.CUSTOM_RANGE -> _showDateRangePicker.value = true
+        }
+    }
+
+    /**
+     * تعيين تاريخ محدد تم اختياره من نافذة التقويم
+     */
+    fun setSelectedDate(date: LocalDate) {
+        _selectedDate.value = date
+        _showDatePicker.value = false
+        _uiState.update { it.copy(showDatePicker = false) }
+    }
+
+    /**
+     * تعيين فترة مخصصة تم اختيارها من نافذة تحديد النطاق الزمني
+     */
+    fun setCustomRange(start: LocalDate, end: LocalDate) {
+        _customStartDate.value = start
+        _customEndDate.value = end
+        _showDateRangePicker.value = false
+        _uiState.update { it.copy(showDateRangePicker = false) }
+    }
+
+    fun dismissDatePicker() {
+        _showDatePicker.value = false
+        _uiState.update { it.copy(showDatePicker = false) }
+    }
+
+    fun dismissDateRangePicker() {
+        _showDateRangePicker.value = false
+        _uiState.update { it.copy(showDateRangePicker = false) }
     }
 
     /**
@@ -76,6 +220,11 @@ class ReportsViewModel(
     fun selectCategory(category: CategoryExpenseSummary?) {
         _selectedCategoryForDetails.update { current ->
             if (current?.categoryId == category?.categoryId) null else category
+        }
+        _uiState.update {
+            it.copy(
+                selectedCategoryForDetails = if (it.selectedCategoryForDetails?.categoryId == category?.categoryId) null else category
+            )
         }
     }
 
@@ -91,12 +240,13 @@ class ReportsViewModel(
  * مصنع إنشاء كائن ReportsViewModel
  */
 class ReportsViewModelFactory(
-    private val getMonthlyReportUseCase: GetMonthlyReportUseCase
+    private val getMonthlyReportUseCase: GetMonthlyReportUseCase,
+    private val transactionRepository: TransactionRepository
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(ReportsViewModel::class.java)) {
-            return ReportsViewModel(getMonthlyReportUseCase) as T
+            return ReportsViewModel(getMonthlyReportUseCase, transactionRepository) as T
         }
         throw IllegalArgumentException("فئة نموذج العرض غير معروفة: ${modelClass.name}")
     }

@@ -92,7 +92,8 @@ fun MasroofiApp(
 
     val reportsViewModel: ReportsViewModel = viewModel(
         factory = ReportsViewModelFactory(
-            getMonthlyReportUseCase = container.getMonthlyReportUseCase
+            getMonthlyReportUseCase = container.getMonthlyReportUseCase,
+            transactionRepository = container.transactionRepository
         )
     )
 

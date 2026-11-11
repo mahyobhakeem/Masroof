@@ -5,29 +5,43 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.masroofi.app.domain.calculations.CategoryExpenseSummary
+import com.masroofi.app.domain.calculations.FinancialCalculator
 import com.masroofi.app.domain.calculations.FinancialSummary
+import com.masroofi.app.domain.model.TimePeriodMode
 import com.masroofi.app.domain.model.TransactionItem
 import com.masroofi.app.domain.repository.TransactionRepository
 import com.masroofi.app.domain.usecase.GetMonthlyFinancialSummaryUseCase
 import com.masroofi.app.domain.usecase.SetMonthlyBudgetUseCase
+import com.masroofi.app.utils.FormatUtils
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.YearMonth
 
 /**
- * حالة واجهة الشاشة الرئيسية لتطبيق مصروفي
+ * حالة واجهة الشاشة الرئيسية لتطبيق مصروف
  */
 @Immutable
 data class HomeUiState(
+    val selectedPeriodMode: TimePeriodMode = TimePeriodMode.MONTHLY,
+    val selectedDate: LocalDate = LocalDate.now(),
+    val selectedWeekStart: LocalDate = FormatUtils.getWeekRangeSaturday(LocalDate.now()).first,
     val selectedMonth: YearMonth = YearMonth.now(),
+    val customStartDate: LocalDate = LocalDate.now().minusDays(30),
+    val customEndDate: LocalDate = LocalDate.now(),
     val summary: FinancialSummary = FinancialSummary(yearMonth = YearMonth.now()),
+    val periodTotalExpenses: Long = 0L,
+    val periodTotalIncome: Long = 0L,
+    val periodNetCashflow: Long = 0L,
     val topCategories: List<CategoryExpenseSummary> = emptyList(),
     val recentTransactions: List<TransactionItem> = emptyList(),
     val isLoading: Boolean = false,
+    val isDatePickerOpen: Boolean = false,
+    val isCustomRangePickerOpen: Boolean = false,
     val isBudgetDialogOpen: Boolean = false,
     val budgetInput: String = "",
     val budgetError: String? = null,
@@ -39,7 +53,8 @@ data class HomeUiState(
 
 /**
  * نموذج العرض للشاشة الرئيسية (HomeViewModel)
- * يدير اختيار الشهر الحالي والمؤشرات المالية السبعة والحوارات التفاعلية
+ * يدير خيارات الاستعراض الزمني الأربعة (يوم، أسبوع، شهر، فترة مخصصة)
+ * والحسابات المالية والتفاعلات اللحظية
  */
 class HomeViewModel(
     private val getMonthlyFinancialSummaryUseCase: GetMonthlyFinancialSummaryUseCase,
@@ -50,62 +65,191 @@ class HomeViewModel(
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    private var currentMonthJob: Job? = null
+    private var currentDataJob: Job? = null
 
     init {
-        observeMonthData(_uiState.value.selectedMonth)
+        observeCurrentPeriodData()
     }
 
     /**
-     * مراقبة تدفق بيانات الشهر المحدد لحظياً عبر UseCase
+     * تغيير وضع الاستعراض الزمني (يوم / أسبوع / شهر / فترة مخصصة)
      */
-    private fun observeMonthData(month: YearMonth) {
-        currentMonthJob?.cancel()
-        currentMonthJob = viewModelScope.launch {
-            getMonthlyFinancialSummaryUseCase(month).collect { homeData ->
-                _uiState.update { current ->
-                    current.copy(
-                        selectedMonth = month,
-                        summary = homeData.summary,
-                        topCategories = homeData.topCategories,
-                        recentTransactions = homeData.recentTransactions,
-                        isLoading = false
-                    )
+    fun setPeriodMode(mode: TimePeriodMode) {
+        if (_uiState.value.selectedPeriodMode == mode) return
+        _uiState.update { it.copy(selectedPeriodMode = mode, isLoading = true) }
+        observeCurrentPeriodData()
+    }
+
+    /**
+     * مراقبة بيانات الفترة المحددة لحظياً بحسب الوضع المختار
+     */
+    private fun observeCurrentPeriodData() {
+        currentDataJob?.cancel()
+        val state = _uiState.value
+
+        currentDataJob = viewModelScope.launch {
+            when (state.selectedPeriodMode) {
+                TimePeriodMode.MONTHLY -> {
+                    getMonthlyFinancialSummaryUseCase(state.selectedMonth).collect { homeData ->
+                        _uiState.update { current ->
+                            current.copy(
+                                summary = homeData.summary,
+                                periodTotalExpenses = homeData.summary.totalMonthlyExpenses,
+                                periodTotalIncome = homeData.summary.totalMonthlyIncome,
+                                periodNetCashflow = homeData.summary.netCashflow,
+                                topCategories = homeData.topCategories,
+                                recentTransactions = homeData.recentTransactions,
+                                isLoading = false
+                            )
+                        }
+                    }
+                }
+                TimePeriodMode.DAILY -> {
+                    val dateStr = state.selectedDate.toString()
+                    transactionRepository.getTransactionsByDateRange(dateStr, dateStr).collect { transactions ->
+                        val exp = FinancialCalculator.calculateMonthlyExpenses(transactions)
+                        val inc = FinancialCalculator.calculateMonthlyIncome(transactions)
+                        val net = FinancialCalculator.calculateNetCashflow(inc, exp)
+                        val topCats = FinancialCalculator.calculateTopCategories(transactions, exp)
+                        _uiState.update { current ->
+                            current.copy(
+                                periodTotalExpenses = exp,
+                                periodTotalIncome = inc,
+                                periodNetCashflow = net,
+                                topCategories = topCats,
+                                recentTransactions = transactions,
+                                isLoading = false
+                            )
+                        }
+                    }
+                }
+                TimePeriodMode.WEEKLY -> {
+                    val (start, end) = FormatUtils.getWeekRangeSaturday(state.selectedWeekStart)
+                    transactionRepository.getTransactionsByDateRange(start.toString(), end.toString()).collect { transactions ->
+                        val exp = FinancialCalculator.calculateMonthlyExpenses(transactions)
+                        val inc = FinancialCalculator.calculateMonthlyIncome(transactions)
+                        val net = FinancialCalculator.calculateNetCashflow(inc, exp)
+                        val topCats = FinancialCalculator.calculateTopCategories(transactions, exp)
+                        _uiState.update { current ->
+                            current.copy(
+                                periodTotalExpenses = exp,
+                                periodTotalIncome = inc,
+                                periodNetCashflow = net,
+                                topCategories = topCats,
+                                recentTransactions = transactions,
+                                isLoading = false
+                            )
+                        }
+                    }
+                }
+                TimePeriodMode.CUSTOM_RANGE -> {
+                    val startStr = state.customStartDate.toString()
+                    val endStr = state.customEndDate.toString()
+                    transactionRepository.getTransactionsByDateRange(startStr, endStr).collect { transactions ->
+                        val exp = FinancialCalculator.calculateMonthlyExpenses(transactions)
+                        val inc = FinancialCalculator.calculateMonthlyIncome(transactions)
+                        val net = FinancialCalculator.calculateNetCashflow(inc, exp)
+                        val topCats = FinancialCalculator.calculateTopCategories(transactions, exp)
+                        _uiState.update { current ->
+                            current.copy(
+                                periodTotalExpenses = exp,
+                                periodTotalIncome = inc,
+                                periodNetCashflow = net,
+                                topCategories = topCats,
+                                recentTransactions = transactions,
+                                isLoading = false
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 
-    /**
-     * الانتقال إلى الشهر السابق
-     */
+    // --- عمليات التحكم باليوم ---
+
+    fun selectPreviousDay() {
+        val newDate = _uiState.value.selectedDate.minusDays(1)
+        _uiState.update { it.copy(selectedDate = newDate) }
+        observeCurrentPeriodData()
+    }
+
+    fun selectNextDay() {
+        val newDate = _uiState.value.selectedDate.plusDays(1)
+        _uiState.update { it.copy(selectedDate = newDate) }
+        observeCurrentPeriodData()
+    }
+
+    fun setSelectedDate(date: LocalDate) {
+        _uiState.update { it.copy(selectedDate = date, isDatePickerOpen = false) }
+        observeCurrentPeriodData()
+    }
+
+    fun openDatePicker() {
+        _uiState.update { it.copy(isDatePickerOpen = true) }
+    }
+
+    fun dismissDatePicker() {
+        _uiState.update { it.copy(isDatePickerOpen = false) }
+    }
+
+    // --- عمليات التحكم بالأسبوع ---
+
+    fun selectPreviousWeek() {
+        val newWeek = _uiState.value.selectedWeekStart.minusWeeks(1)
+        _uiState.update { it.copy(selectedWeekStart = newWeek) }
+        observeCurrentPeriodData()
+    }
+
+    fun selectNextWeek() {
+        val newWeek = _uiState.value.selectedWeekStart.plusWeeks(1)
+        _uiState.update { it.copy(selectedWeekStart = newWeek) }
+        observeCurrentPeriodData()
+    }
+
+    // --- عمليات التحكم بالشهر ---
+
     fun selectPreviousMonth() {
         val newMonth = _uiState.value.selectedMonth.minusMonths(1)
         _uiState.update { it.copy(selectedMonth = newMonth) }
-        observeMonthData(newMonth)
+        observeCurrentPeriodData()
     }
 
-    /**
-     * الانتقال إلى الشهر التالي
-     */
     fun selectNextMonth() {
         val newMonth = _uiState.value.selectedMonth.plusMonths(1)
         _uiState.update { it.copy(selectedMonth = newMonth) }
-        observeMonthData(newMonth)
+        observeCurrentPeriodData()
     }
 
-    /**
-     * العودة إلى الشهر الحالي
-     */
     fun selectCurrentMonth() {
         val newMonth = YearMonth.now()
         _uiState.update { it.copy(selectedMonth = newMonth) }
-        observeMonthData(newMonth)
+        observeCurrentPeriodData()
     }
 
-    /**
-     * فتح نافذة تحديد أو تعديل الميزانية للشهر الحالي
-     */
+    // --- عمليات التحكم بالفترة المخصصة ---
+
+    fun setCustomRange(startDate: LocalDate, endDate: LocalDate) {
+        _uiState.update {
+            it.copy(
+                customStartDate = startDate,
+                customEndDate = endDate,
+                isCustomRangePickerOpen = false
+            )
+        }
+        observeCurrentPeriodData()
+    }
+
+    fun openCustomRangePicker() {
+        _uiState.update { it.copy(isCustomRangePickerOpen = true) }
+    }
+
+    fun dismissCustomRangePicker() {
+        _uiState.update { it.copy(isCustomRangePickerOpen = false) }
+    }
+
+    // --- إدارة الميزانية الشهرية ---
+
     fun openBudgetDialog() {
         val currentBudget = _uiState.value.summary.monthlyBudget
         _uiState.update {
@@ -118,9 +262,6 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * إغلاق نافذة تحديد الميزانية
-     */
     fun dismissBudgetDialog() {
         _uiState.update {
             it.copy(
@@ -131,9 +272,6 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * تحديث حقل إدخال الميزانية (أرقام فقط)
-     */
     fun onBudgetInputChanged(input: String) {
         val filtered = input.filter { it.isDigit() }
         _uiState.update {
@@ -144,9 +282,6 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * حفظ الميزانية في قاعدة البيانات
-     */
     fun saveMonthlyBudget() {
         val currentInput = _uiState.value.budgetInput
         val amount = currentInput.toLongOrNull()
@@ -180,23 +315,16 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * فتح نافذة تفاصيل العملية عند النقر عليها
-     */
+    // --- إدارة العمليات والتفاصيل والحذف ---
+
     fun onTransactionClick(transaction: TransactionItem) {
         _uiState.update { it.copy(selectedTransactionForDetails = transaction) }
     }
 
-    /**
-     * إغلاق نافذة تفاصيل العملية
-     */
     fun dismissTransactionDetails() {
         _uiState.update { it.copy(selectedTransactionForDetails = null) }
     }
 
-    /**
-     * طلب حذف العملية وفتح نافذة التأكيد
-     */
     fun requestDeleteTransaction(transaction: TransactionItem) {
         _uiState.update {
             it.copy(
@@ -207,9 +335,6 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * إلغاء نافذة تأكيد الحذف
-     */
     fun dismissDeleteDialog() {
         _uiState.update {
             it.copy(
@@ -219,9 +344,6 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * تأكيد حذف العملية المالية نهائياً
-     */
     fun confirmDeleteTransaction() {
         val tx = _uiState.value.transactionToDelete ?: return
         viewModelScope.launch {

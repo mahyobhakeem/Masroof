@@ -55,7 +55,7 @@ class ReportsViewModelTest {
         fakeTransactionRepository.setTransactions(initialTransactions)
 
         getMonthlyReportUseCase = GetMonthlyReportUseCase(fakeTransactionRepository)
-        viewModel = ReportsViewModel(getMonthlyReportUseCase)
+        viewModel = ReportsViewModel(getMonthlyReportUseCase, fakeTransactionRepository)
         viewModel.setSelectedYearMonth(november)
     }
 
@@ -152,6 +152,35 @@ class ReportsViewModelTest {
 
         // أكتوبر كان 30,000 ونوفمبر 45,000 -> نسبة الزيادة +50%
         assertEquals(50, report.monthChangePercentage)
+    }
+
+    @Test
+    fun `test reports period mode specific day updates summary correctly`() = runTest {
+        viewModel.setPeriodMode(com.masroofi.app.domain.model.ReportPeriodMode.SPECIFIC_DAY)
+        viewModel.setSelectedDate(LocalDate.of(2026, 11, 2))
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(com.masroofi.app.domain.model.ReportPeriodMode.SPECIFIC_DAY, state.periodMode)
+        assertEquals(20000L, state.reportData.totalExpenses)
+        assertEquals(0L, state.reportData.totalIncome)
+        assertEquals(-20000L, state.reportData.netCashflow)
+    }
+
+    @Test
+    fun `test reports period mode custom range updates summary correctly`() = runTest {
+        viewModel.setPeriodMode(com.masroofi.app.domain.model.ReportPeriodMode.CUSTOM_RANGE)
+        viewModel.setCustomRange(LocalDate.of(2026, 10, 1), LocalDate.of(2026, 11, 10))
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(com.masroofi.app.domain.model.ReportPeriodMode.CUSTOM_RANGE, state.periodMode)
+        // tx1: 20000, tx2: 15000, tx4: 80000 income, tx5: 30000, tx6: 80000 income
+        // expenses = 20000 + 15000 + 30000 = 65000
+        // income = 80000 + 80000 = 160000
+        assertEquals(65000L, state.reportData.totalExpenses)
+        assertEquals(160000L, state.reportData.totalIncome)
+        assertEquals(95000L, state.reportData.netCashflow)
     }
 }
 

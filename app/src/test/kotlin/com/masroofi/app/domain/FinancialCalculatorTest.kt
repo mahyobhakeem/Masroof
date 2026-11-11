@@ -393,4 +393,66 @@ class FinancialCalculatorTest {
         assertEquals("مبلغ التجاوز 20,000,000", 20_000_000L, summary.budgetExcessAmount)
         assertEquals("نسبة الاستهلاك 140%", 140, summary.consumptionPercentage)
     }
+
+    @Test
+    fun `test filterTransactionsByDateRange includes start and end dates exactly`() {
+        val txs = listOf(
+            TransactionItem("t1", TransactionType.EXPENSE, 1000, "c1", transactionDate = "2026-10-14"),
+            TransactionItem("t2", TransactionType.EXPENSE, 2000, "c1", transactionDate = "2026-10-15"),
+            TransactionItem("t3", TransactionType.EXPENSE, 3000, "c1", transactionDate = "2026-10-16"),
+            TransactionItem("t4", TransactionType.EXPENSE, 4000, "c1", transactionDate = "2026-10-20"),
+            TransactionItem("t5", TransactionType.EXPENSE, 5000, "c1", transactionDate = "2026-10-21")
+        )
+
+        val start = LocalDate.of(2026, 10, 15)
+        val end = LocalDate.of(2026, 10, 20)
+        val filtered = FinancialCalculator.filterTransactionsByDateRange(txs, start, end)
+
+        assertEquals("يجب أن تشمل العمليات أيام 15 و 16 و 20", 3, filtered.size)
+        assertEquals(listOf("t2", "t3", "t4"), filtered.map { it.id })
+    }
+
+    @Test
+    fun `test specific past day calculations`() {
+        val pastDay = LocalDate.of(2026, 9, 15)
+        val txs = listOf(
+            TransactionItem("t1", TransactionType.EXPENSE, 15000, "c1", "طعام", transactionDate = "2026-09-15"),
+            TransactionItem("t2", TransactionType.EXPENSE, 5000, "c2", "مواصلات", transactionDate = "2026-09-15"),
+            TransactionItem("t3", TransactionType.INCOME, 50000, "c3", "إكرامية", transactionDate = "2026-09-15"),
+            TransactionItem("t4", TransactionType.EXPENSE, 10000, "c1", "طعام", transactionDate = "2026-09-16")
+        )
+
+        val expenses = FinancialCalculator.calculateExpensesForRange(txs, pastDay, pastDay)
+        val income = FinancialCalculator.calculateIncomeForRange(txs, pastDay, pastDay)
+
+        assertEquals(20000L, expenses)
+        assertEquals(50000L, income)
+
+        val periodReport = FinancialCalculator.buildPeriodReport(pastDay, pastDay, FinancialCalculator.filterTransactionsByDateRange(txs, pastDay, pastDay))
+        assertEquals(20000L, periodReport.totalExpenses)
+        assertEquals(50000L, periodReport.totalIncome)
+        assertEquals(30000L, periodReport.netCashflow)
+        assertEquals(20000L, periodReport.averageDailyExpense)
+    }
+
+    @Test
+    fun `test custom date range calculations and buildPeriodReport`() {
+        val start = LocalDate.of(2026, 10, 1)
+        val end = LocalDate.of(2026, 10, 10) // 10 days
+        val txs = listOf(
+            TransactionItem("t1", TransactionType.EXPENSE, 40000, "c1", "تسوق", transactionDate = "2026-10-01"),
+            TransactionItem("t2", TransactionType.EXPENSE, 60000, "c2", "إلكترونيات", transactionDate = "2026-10-10"),
+            TransactionItem("t3", TransactionType.INCOME, 150000, "c3", "راتب", transactionDate = "2026-10-05"),
+            TransactionItem("t4", TransactionType.EXPENSE, 25000, "c1", "تسوق", transactionDate = "2026-10-11") // Outside range
+        )
+
+        val inRange = FinancialCalculator.filterTransactionsByDateRange(txs, start, end)
+        val report = FinancialCalculator.buildPeriodReport(start, end, inRange, txs)
+
+        assertEquals("إجمالي المصروفات في الفترة 100,000", 100000L, report.totalExpenses)
+        assertEquals("إجمالي الإيرادات في الفترة 150,000", 150000L, report.totalIncome)
+        assertEquals("صافي التدفق 50,000", 50000L, report.netCashflow)
+        assertEquals("متوسط الصرف اليومي لـ 10 أيام هو 10,000", 10000L, report.averageDailyExpense)
+        assertEquals("عدد التصنيفات 2", 2, report.categoryBreakdown.size)
+    }
 }

@@ -38,7 +38,10 @@ import com.masroofi.app.domain.calculations.CategoryExpenseSummary
 import com.masroofi.app.domain.calculations.MonthlyComparisonItem
 import com.masroofi.app.domain.calculations.MonthlyReportData
 import com.masroofi.app.domain.calculations.WeeklySpendingItem
+import com.masroofi.app.domain.model.ReportPeriodMode
 import com.masroofi.app.presentation.components.CategoryIconHelper
+import com.masroofi.app.presentation.components.MasroofDatePickerDialog
+import com.masroofi.app.presentation.components.MasroofDateRangeDialog
 import com.masroofi.app.presentation.theme.*
 import com.masroofi.app.utils.formatNumber
 import com.masroofi.app.utils.formatYearMonth
@@ -58,11 +61,31 @@ fun ReportsScreen(
 
     ReportsContent(
         uiState = uiState,
-        onPreviousMonth = { viewModel.selectPreviousMonth() },
-        onNextMonth = { viewModel.selectNextMonth() },
+        onModeSelect = { viewModel.setPeriodMode(it) },
+        onPrevious = { viewModel.selectPrevious() },
+        onNext = { viewModel.selectNext() },
+        onDateClick = { viewModel.onDateLabelClick() },
         onCategorySelect = { viewModel.selectCategory(it) },
         modifier = modifier
     )
+
+    if (uiState.showDatePicker) {
+        MasroofDatePickerDialog(
+            initialDate = uiState.selectedDate,
+            title = if (uiState.periodMode == ReportPeriodMode.WEEKLY) "اختر أسبوعاً" else "اختر يوماً محدداً",
+            onDateSelected = { viewModel.setSelectedDate(it) },
+            onDismiss = { viewModel.dismissDatePicker() }
+        )
+    }
+
+    if (uiState.showDateRangePicker) {
+        MasroofDateRangeDialog(
+            initialStartDate = uiState.customStartDate,
+            initialEndDate = uiState.customEndDate,
+            onRangeSelected = { start, end -> viewModel.setCustomRange(start, end) },
+            onDismiss = { viewModel.dismissDateRangePicker() }
+        )
+    }
 }
 
 /**
@@ -72,9 +95,13 @@ fun ReportsScreen(
 @Composable
 fun ReportsContent(
     uiState: ReportsUiState,
-    onPreviousMonth: () -> Unit,
-    onNextMonth: () -> Unit,
-    onCategorySelect: (CategoryExpenseSummary?) -> Unit,
+    onModeSelect: (ReportPeriodMode) -> Unit = {},
+    onPrevious: () -> Unit = {},
+    onNext: () -> Unit = {},
+    onDateClick: () -> Unit = {},
+    onCategorySelect: (CategoryExpenseSummary?) -> Unit = {},
+    onPreviousMonth: () -> Unit = onPrevious,
+    onNextMonth: () -> Unit = onNext,
     modifier: Modifier = Modifier
 ) {
     val report = uiState.reportData
@@ -86,12 +113,28 @@ fun ReportsContent(
             .padding(horizontal = 16.dp),
         contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp)
     ) {
-        // ترويسة الشاشة ومحدد الشهر
+        // ترويسة الشاشة
         item {
-            ReportsHeader(
-                selectedMonth = uiState.selectedYearMonth,
-                onPreviousMonth = onPreviousMonth,
-                onNextMonth = onNextMonth
+            ReportsHeader()
+            Spacer(modifier = Modifier.height(14.dp))
+        }
+
+        // شريط التبديل الزمني (شهري، أسبوعي، يوم محدد، فترة مخصصة)
+        item {
+            ReportPeriodSegmentedSwitch(
+                selectedMode = uiState.periodMode,
+                onModeSelect = onModeSelect
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        // شريط التنقل الزمني
+        item {
+            ReportsDateNavigator(
+                label = uiState.periodLabel.ifEmpty { formatYearMonth(uiState.selectedYearMonth) },
+                onPrevious = onPrevious,
+                onNext = onNext,
+                onDateClick = onDateClick
             )
             Spacer(modifier = Modifier.height(18.dp))
         }
@@ -107,10 +150,10 @@ fun ReportsContent(
             Spacer(modifier = Modifier.height(22.dp))
         }
 
-        // في حال عدم وجود مصروفات للشهر المختار: عرض بطاقة حالة فارغة أنيقة
+        // في حال عدم وجود مصروفات للفترة المختارة: عرض بطاقة حالة فارغة أنيقة
         if (!report.hasExpenses) {
             item {
-                EmptyReportsStateCard(selectedMonth = uiState.selectedYearMonth)
+                EmptyReportsStateCard(periodLabel = uiState.periodLabel.ifEmpty { formatYearMonth(uiState.selectedYearMonth) })
                 Spacer(modifier = Modifier.height(20.dp))
             }
         } else {
@@ -125,109 +168,165 @@ fun ReportsContent(
                 Spacer(modifier = Modifier.height(20.dp))
             }
 
-            // الرسم الثاني: مخطط توزيع المصروفات عبر أسابيع الشهر (Weekly Bar Chart)
-            item {
-                WeeklySpendingBarChartCard(
-                    weeklyList = report.weeklySpendingList,
-                    peakPeriod = report.peakSpendingPeriod,
-                    averageWeekly = report.averageWeeklyExpense
-                )
-                Spacer(modifier = Modifier.height(20.dp))
-            }
-        }
+            // الرسوم الإضافية للشهر فقط
+            if (uiState.periodMode == ReportPeriodMode.MONTHLY) {
+                // الرسم الثاني: مخطط توزيع المصروفات عبر أسابيع الشهر (Weekly Bar Chart)
+                item {
+                    WeeklySpendingBarChartCard(
+                        weeklyList = report.weeklySpendingList,
+                        peakPeriod = report.peakSpendingPeriod,
+                        averageWeekly = report.averageWeeklyExpense
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
 
-        // الرسم الثالث: مخطط مقارنة المصروفات عبر الأشهر (Monthly Comparison Bar Chart)
-        item {
-            MonthlyComparisonBarChartCard(
-                comparisons = report.monthlyComparisons,
-                monthChangePercentage = report.monthChangePercentage
-            )
+                // الرسم الثالث: مخطط مقارنة المصروفات عبر الأشهر (Monthly Comparison Bar Chart)
+                item {
+                    MonthlyComparisonBarChartCard(
+                        comparisons = report.monthlyComparisons,
+                        monthChangePercentage = report.monthChangePercentage
+                    )
+                }
+            }
         }
     }
 }
 
 /**
- * ترويسة الشاشة مع محدد الشهر التفاعلي
+ * ترويسة الشاشة
  */
 @Composable
-private fun ReportsHeader(
-    selectedMonth: YearMonth,
-    onPreviousMonth: () -> Unit,
-    onNextMonth: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column {
-            Text(
-                text = "التقارير والإحصائيات",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Text(
-                text = "تحليل الأداء المالي والمصروفات بدقة",
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
-            )
-        }
+private fun ReportsHeader() {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "التقارير والإحصائيات",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Text(
+            text = "تحليل الأداء المالي والمصروفات بدقة",
+            style = MaterialTheme.typography.bodySmall,
+            color = TextSecondary
+        )
+    }
+}
 
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 2.dp,
-            shadowElevation = 1.dp
+/**
+ * شريط التبديل الزمني بين الأنماط الأربعة
+ */
+@Composable
+private fun ReportPeriodSegmentedSwitch(
+    selectedMode: ReportPeriodMode,
+    onModeSelect: (ReportPeriodMode) -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            ReportPeriodMode.values().forEach { mode ->
+                val isSelected = mode == selectedMode
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                    tonalElevation = if (isSelected) 2.dp else 0.dp,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onModeSelect(mode) }
+                ) {
+                    Box(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = mode.title,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * محدد الفترات والتنقل الزمني لشاشة التقارير
+ */
+@Composable
+private fun ReportsDateNavigator(
+    label: String,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onDateClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onPrevious,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "السابق",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
             Row(
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(onClick = onDateClick)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // سهم الشهر السابق
-                IconButton(
-                    onClick = onPreviousMonth,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "الشهر السابق",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.CalendarMonth,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
 
-                Row(
-                    modifier = Modifier.padding(horizontal = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CalendarMonth,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = formatYearMonth(selectedMonth),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                // سهم الشهر التالي
-                IconButton(
-                    onClick = onNextMonth,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "الشهر التالي",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+            IconButton(
+                onClick = onNext,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "التالي",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
@@ -438,11 +537,11 @@ private fun ReportsSummaryCards(
 }
 
 /**
- * بطاقة الحالة الفارغة عند عدم وجود مصروفات للشهر المختار
+ * بطاقة الحالة الفارغة عند عدم وجود مصروفات للفترة المختارة
  */
 @Composable
 private fun EmptyReportsStateCard(
-    selectedMonth: YearMonth
+    periodLabel: String
 ) {
     Surface(
         modifier = Modifier
@@ -474,7 +573,7 @@ private fun EmptyReportsStateCard(
             }
             Spacer(modifier = Modifier.height(14.dp))
             Text(
-                text = "لا توجد مصروفات مسجلة في هذا الشهر",
+                text = "لا توجد مصروفات مسجلة لهذه الفترة",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -482,7 +581,7 @@ private fun EmptyReportsStateCard(
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "لم يتم تسجيل أي نفقات في شهر ${formatYearMonth(selectedMonth)} لعرض المخططات والتحليلات. يمكنك اختيار شهر آخر أو إضافة معاملات جديدة.",
+                text = "لم يتم تسجيل أي نفقات في ($periodLabel) لعرض المخططات والتحليلات. يمكنك اختيار فترة أخرى أو إضافة معاملات جديدة.",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextSecondary,
                 textAlign = TextAlign.Center
