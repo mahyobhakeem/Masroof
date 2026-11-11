@@ -1,11 +1,8 @@
 package com.masroofi.app.data.backup
 
-import kotlinx.serialization.Serializable
-
 /**
  * كائن نقل بيانات التصنيف المالي في ملف النسخة الاحتياطية (JSON)
  */
-@Serializable
 data class CategoryBackupDto(
     val id: String,
     val name: String,
@@ -18,7 +15,6 @@ data class CategoryBackupDto(
 /**
  * كائن نقل بيانات العملية المالية في ملف النسخة الاحتياطية (JSON)
  */
-@Serializable
 data class TransactionBackupDto(
     val id: String,
     val type: String, // "EXPENSE" أو "INCOME"
@@ -33,7 +29,6 @@ data class TransactionBackupDto(
 /**
  * كائن نقل بيانات الميزانية الشهرية في ملف النسخة الاحتياطية (JSON)
  */
-@Serializable
 data class MonthlyBudgetBackupDto(
     val id: String,
     val yearMonth: String, // بصيغة YYYY-MM
@@ -43,7 +38,6 @@ data class MonthlyBudgetBackupDto(
 /**
  * حمولة النسخة الاحتياطية الشاملة لتطبيق مصروفي بصيغة JSON
  */
-@Serializable
 data class BackupPayload(
     val backupFormatVersion: Int = 1,
     val createdAt: String,

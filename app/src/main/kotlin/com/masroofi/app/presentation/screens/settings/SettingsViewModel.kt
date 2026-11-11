@@ -1,8 +1,11 @@
 package com.masroofi.app.presentation.screens.settings
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.masroofi.app.data.backup.BackupFileManager
 import com.masroofi.app.data.backup.BackupManager
 import com.masroofi.app.data.backup.BackupSummary
 import com.masroofi.app.data.export.CsvExporter
@@ -14,8 +17,10 @@ import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.domain.repository.CategoryRepository
 import com.masroofi.app.domain.repository.MonthlyBudgetRepository
 import com.masroofi.app.domain.repository.TransactionRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.time.YearMonth
@@ -38,6 +43,8 @@ data class SettingsUiState(
     val addEditCategoryType: TransactionType = TransactionType.EXPENSE,
     val budgetToEdit: MonthlyBudget? = null,
     val showEditBudgetDialog: Boolean = false,
+    val isRestoreSelectionOpen: Boolean = false,
+    val localBackupFiles: List<File> = emptyList(),
     val isRestoreConfirmationOpen: Boolean = false,
     val pendingRestoreSummary: BackupSummary? = null,
     val errorMessage: String? = null,
@@ -337,6 +344,168 @@ class SettingsViewModel(
     // 5. النسخ الاحتياطي والاستعادة وتصدير CSV
     // ==========================================
 
+    fun refreshLocalBackups(context: Context) {
+        val files = BackupFileManager.listLocalBackups(context)
+        _uiState.update { it.copy(localBackupFiles = files) }
+    }
+
+    fun openRestoreSelection(context: Context) {
+        val files = BackupFileManager.listLocalBackups(context)
+        _uiState.update {
+            it.copy(
+                isRestoreSelectionOpen = true,
+                localBackupFiles = files
+            )
+        }
+    }
+
+    fun closeRestoreSelection() {
+        _uiState.update { it.copy(isRestoreSelectionOpen = false) }
+    }
+
+    /**
+     * إنشاء وحفظ نسخة احتياطية مباشرة في المجلد المحلي للتطبيق
+     */
+    fun createBackupLocally(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val jsonString = backupManager.createBackupJson()
+                val targetFile = BackupFileManager.saveBackupDirectly(context, jsonString)
+                val updatedFiles = BackupFileManager.listLocalBackups(context)
+                _uiState.update {
+                    it.copy(
+                        localBackupFiles = updatedFiles,
+                        successMessage = "تم إنشاء النسخة الاحتياطية بنجاح:\n${targetFile.name}"
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(errorMessage = "فشل إنشاء النسخة الاحتياطية: ${e.localizedMessage ?: e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * حفظ النسخة الاحتياطية في المسار الخارجي المختار عبر SAF مع الاحتفاظ بنسخة محلية
+     */
+    fun exportBackupToUri(context: Context, uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val jsonString = backupManager.createBackupJson()
+                context.contentResolver.openOutputStream(uri)?.use { stream ->
+                    stream.bufferedWriter(Charsets.UTF_8).use { it.write(jsonString) }
+                } ?: throw IllegalStateException("تعذر فتح مسار الملف المختار")
+
+                BackupFileManager.saveBackupDirectly(context, jsonString)
+                val updatedFiles = BackupFileManager.listLocalBackups(context)
+
+                _uiState.update {
+                    it.copy(
+                        localBackupFiles = updatedFiles,
+                        successMessage = "تم حفظ النسخة الاحتياطية بنجاح في الموقع المحدد"
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(errorMessage = "فشل حفظ النسخة الاحتياطية: ${e.localizedMessage ?: e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * استعادة نسخة من ملف محلي موجود مسبقاً
+     */
+    fun restoreFromLocalFile(file: File) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val jsonString = file.readText(Charsets.UTF_8)
+                backupManager.validateBackupJson(jsonString)
+                    .onSuccess { summary ->
+                        _uiState.update {
+                            it.copy(
+                                isRestoreSelectionOpen = false,
+                                pendingRestoreSummary = summary,
+                                isRestoreConfirmationOpen = true
+                            )
+                        }
+                    }
+                    .onFailure { error ->
+                        _uiState.update {
+                            it.copy(errorMessage = error.localizedMessage ?: "ملف النسخة الاحتياطية غير صالح")
+                        }
+                    }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(errorMessage = "تعذر قراءة الملف: ${e.localizedMessage ?: e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * قراءة وفحص ملف مسترجع عبر SAF
+     */
+    fun prepareRestoreFromUri(context: Context, uri: Uri) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val jsonString = context.contentResolver.openInputStream(uri)?.use { stream ->
+                    stream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                } ?: throw IllegalStateException("تعذر قراءة الملف المختار")
+
+                backupManager.validateBackupJson(jsonString)
+                    .onSuccess { summary ->
+                        _uiState.update {
+                            it.copy(
+                                isRestoreSelectionOpen = false,
+                                pendingRestoreSummary = summary,
+                                isRestoreConfirmationOpen = true
+                            )
+                        }
+                    }
+                    .onFailure { error ->
+                        _uiState.update {
+                            it.copy(errorMessage = error.localizedMessage ?: "ملف النسخة الاحتياطية غير صالح")
+                        }
+                    }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(errorMessage = "تعذر قراءة الملف المختار: ${e.localizedMessage ?: e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * تصدير العمليات إلى ملف CSV محلي وخارجي
+     */
+    fun exportCsvLocallyAndToUri(context: Context, uri: Uri? = null) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val transactions = transactionRepository.getAllTransactions().first()
+                val csvContent = CsvExporter.exportTransactions(transactions)
+
+                val savedFile = BackupFileManager.saveCsvDirectly(context, csvContent)
+
+                if (uri != null) {
+                    context.contentResolver.openOutputStream(uri)?.use { stream ->
+                        stream.bufferedWriter(Charsets.UTF_8).use { it.write(csvContent) }
+                    }
+                }
+
+                _uiState.update {
+                    it.copy(successMessage = "تم تصدير ${transactions.size} عملية إلى ملف CSV بنجاح:\n${savedFile.name}")
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(errorMessage = "فشل تصدير ملف CSV: ${e.localizedMessage ?: e.message}")
+                }
+            }
+        }
+    }
+
+    // دوال الدعم للاختبارات المعزولة (Streams)
     fun exportBackup(outputStream: OutputStream) {
         viewModelScope.launch {
             try {

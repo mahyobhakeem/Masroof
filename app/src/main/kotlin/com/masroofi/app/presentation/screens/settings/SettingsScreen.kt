@@ -1,5 +1,6 @@
 package com.masroofi.app.presentation.screens.settings
 
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -26,6 +27,7 @@ import com.masroofi.app.presentation.components.MasroofiExpandableCard
 import com.masroofi.app.presentation.components.MasroofiItemCard
 import com.masroofi.app.presentation.theme.*
 import com.masroofi.app.utils.formatNumber
+import java.io.File
 import java.time.LocalDate
 
 /**
@@ -39,47 +41,27 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
+    LaunchedEffect(Unit) {
+        viewModel.refreshLocalBackups(context)
+    }
+
     // مشغلات إطار وصول التخزين القياسي (Storage Access Framework)
     val backupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
-        uri?.let {
-            try {
-                context.contentResolver.openOutputStream(it)?.use { stream ->
-                    viewModel.exportBackup(stream)
-                }
-            } catch (e: Exception) {
-                // خطأ فتح الملف
-            }
-        }
+        uri?.let { viewModel.exportBackupToUri(context, it) }
     }
 
     val restoreLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
-        uri?.let {
-            try {
-                context.contentResolver.openInputStream(it)?.use { stream ->
-                    viewModel.prepareRestore(stream)
-                }
-            } catch (e: Exception) {
-                // خطأ قراءة الملف
-            }
-        }
+        uri?.let { viewModel.prepareRestoreFromUri(context, it) }
     }
 
     val csvLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
     ) { uri ->
-        uri?.let {
-            try {
-                context.contentResolver.openOutputStream(it)?.use { stream ->
-                    viewModel.exportCsv(stream)
-                }
-            } catch (e: Exception) {
-                // خطأ كتابة الملف
-            }
-        }
+        uri?.let { viewModel.exportCsvLocallyAndToUri(context, it) }
     }
 
     SettingsContent(
@@ -102,15 +84,22 @@ fun SettingsScreen(
         onCloseAboutDialog = { viewModel.closeAboutDialog() },
         onClearMessages = { viewModel.clearMessages() },
         onTriggerBackup = {
-            val fileName = "masroofi_backup_${LocalDate.now()}.json"
-            backupLauncher.launch(fileName)
+            viewModel.createBackupLocally(context)
         },
         onTriggerRestore = {
-            restoreLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
+            viewModel.openRestoreSelection(context)
         },
         onTriggerCsvExport = {
-            val fileName = "masroofi_transactions_${LocalDate.now()}.csv"
-            csvLauncher.launch(fileName)
+            viewModel.exportCsvLocallyAndToUri(context, null)
+        },
+        onSelectExternalRestore = {
+            restoreLauncher.launch(arrayOf("*/*"))
+        },
+        onSelectLocalRestore = { file ->
+            viewModel.restoreFromLocalFile(file)
+        },
+        onCloseRestoreSelection = {
+            viewModel.closeRestoreSelection()
         },
         onConfirmRestore = { viewModel.confirmRestore() },
         onCancelRestore = { viewModel.cancelRestore() },
@@ -144,20 +133,26 @@ fun SettingsContent(
     onTriggerBackup: () -> Unit = {},
     onTriggerRestore: () -> Unit = {},
     onTriggerCsvExport: () -> Unit = {},
+    onSelectExternalRestore: () -> Unit = {},
+    onSelectLocalRestore: (File) -> Unit = {},
+    onCloseRestoreSelection: () -> Unit = {},
     onConfirmRestore: () -> Unit = {},
     onCancelRestore: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
 
     // عرض رسائل التنبيه والنجاح
     LaunchedEffect(uiState.errorMessage, uiState.successMessage) {
-        uiState.errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
+        uiState.errorMessage?.let { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+            snackbarHostState.showSnackbar(msg)
             onClearMessages()
         }
-        uiState.successMessage?.let {
-            snackbarHostState.showSnackbar(it)
+        uiState.successMessage?.let { msg ->
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+            snackbarHostState.showSnackbar(msg)
             onClearMessages()
         }
     }
@@ -446,6 +441,29 @@ fun SettingsContent(
                             modifier = Modifier.size(20.dp)
                         )
                     }
+
+                    if (uiState.localBackupFiles.isNotEmpty()) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.8.dp)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp, horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "النسخ الاحتياطية المتوفرة محلياً",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                            Text(
+                                text = "${uiState.localBackupFiles.size} نسخة",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 }
             }
 
@@ -488,7 +506,7 @@ fun SettingsContent(
             hostState = snackbarHostState,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 80.dp)
+                .padding(bottom = 16.dp)
         )
     }
 
@@ -524,6 +542,16 @@ fun SettingsContent(
     // نافذة حول التطبيق
     if (uiState.isAboutDialogOpen) {
         AboutAppDialog(onDismiss = onCloseAboutDialog)
+    }
+
+    // نافذة اختيار ملف النسخة الاحتياطية (محلية أو خارجية)
+    if (uiState.isRestoreSelectionOpen) {
+        RestoreSelectionDialog(
+            localFiles = uiState.localBackupFiles,
+            onSelectExternalFile = onSelectExternalRestore,
+            onSelectLocalFile = onSelectLocalRestore,
+            onDismiss = onCloseRestoreSelection
+        )
     }
 
     // نافذة تأكيد استعادة النسخة الاحتياطية
