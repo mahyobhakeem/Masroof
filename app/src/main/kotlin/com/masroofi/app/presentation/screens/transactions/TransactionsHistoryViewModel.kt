@@ -1,5 +1,6 @@
 package com.masroofi.app.presentation.screens.transactions
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -39,6 +40,7 @@ data class FilterCriteria(
 /**
  * حالة واجهة مستخدم سجل العمليات
  */
+@Immutable
 data class TransactionsHistoryUiState(
     val transactions: List<TransactionItem> = emptyList(),
     val allCategories: List<Category> = emptyList(),
@@ -70,8 +72,8 @@ class TransactionsHistoryViewModel(
     init {
         viewModelScope.launch {
             combine(
-                transactionRepository.getAllTransactions(),
-                categoryRepository.getAllCategories(),
+                transactionRepository.getAllTransactions().distinctUntilChanged(),
+                categoryRepository.getAllCategories().distinctUntilChanged(),
                 _filters,
                 _userMessage
             ) { allTx: List<TransactionItem>, allCats: List<Category>, filters: FilterCriteria, msg: String? ->

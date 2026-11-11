@@ -240,7 +240,11 @@ fun HomeScreenContent(
                 EmptyRecentTransactionsCard()
             }
         } else {
-            items(uiState.recentTransactions, key = { it.id }) { transaction ->
+            items(
+                items = uiState.recentTransactions,
+                key = { it.id },
+                contentType = { "transaction_item" }
+            ) { transaction ->
                 HomeTransactionRowItem(
                     transaction = transaction,
                     onClick = { onTransactionClick(transaction) }

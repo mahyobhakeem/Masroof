@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -25,6 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -131,7 +135,11 @@ fun CategoryManagementSheet(
                 contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(currentList, key = { it.id }) { category ->
+                items(
+                    items = currentList,
+                    key = { it.id },
+                    contentType = { "category_item" }
+                ) { category ->
                     val count = uiState.categoryTransactionCounts[category.id] ?: 0
                     CategoryManagementRow(
                         category = category,
@@ -328,6 +336,10 @@ private fun AddEditCategoryDialog(
                     },
                     label = "اسم التصنيف بالعربية",
                     placeholder = "مثال: بقالة، كهرباء، صيانة...",
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Done
+                    ),
                     isError = nameError != null,
                     supportingText = nameError
                 )
@@ -408,7 +420,11 @@ private fun AddEditCategoryDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(CategoryIconHelper.selectableIcons) { iconKey ->
+                    items(
+                        items = CategoryIconHelper.selectableIcons,
+                        key = { it },
+                        contentType = { "category_icon" }
+                    ) { iconKey ->
                         val isIconSelected = selectedIcon == iconKey
                         val iconColor = CategoryIconHelper.getColor(iconKey)
                         val iconVec = CategoryIconHelper.getIcon(iconKey)

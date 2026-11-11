@@ -1,10 +1,12 @@
 package com.masroofi.app.domain.model
 
+import androidx.compose.runtime.Immutable
 import java.time.LocalDate
 
 /**
  * نموذج نطاق العمل للعملية المالية الحقيقية
  */
+@Immutable
 data class TransactionItem(
     val id: String,
     val type: TransactionType,

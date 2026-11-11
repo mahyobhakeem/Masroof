@@ -1,10 +1,12 @@
 package com.masroofi.app.domain.calculations
 
+import androidx.compose.runtime.Immutable
 import java.time.YearMonth
 
 /**
  * بيانات الإنفاق لفترة أسبوعية محددة خلال الشهر
  */
+@Immutable
 data class WeeklySpendingItem(
     val periodName: String, // مثال: "الأسبوع 1"
     val daysLabel: String,  // مثال: "1 - 7"
@@ -15,6 +17,7 @@ data class WeeklySpendingItem(
 /**
  * بيانات مقارنة الإنفاق عبر الأشهر (آخر 6 أشهر)
  */
+@Immutable
 data class MonthlyComparisonItem(
     val yearMonth: YearMonth,
     val monthLabel: String, // مثال: "نوفمبر"
@@ -25,6 +28,7 @@ data class MonthlyComparisonItem(
 /**
  * التقرير المالي والإحصائي الشامل للشهر المختار في شاشة التقارير
  */
+@Immutable
 data class MonthlyReportData(
     val yearMonth: YearMonth,
     val totalExpenses: Long = 0L,

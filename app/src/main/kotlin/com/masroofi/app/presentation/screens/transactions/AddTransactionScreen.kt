@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
@@ -22,10 +23,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.masroofi.app.domain.model.Category
 import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.presentation.components.CategoryIconHelper
@@ -44,7 +48,7 @@ fun AddTransactionScreen(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // إغلاق الشاشة تلقائياً عند نجاح الحفظ
@@ -91,6 +95,8 @@ fun AddTransactionContent(
     modifier: Modifier = Modifier
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val visualTransformation = remember { ThousandsSeparatorVisualTransformation() }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -152,8 +158,11 @@ fun AddTransactionContent(
                     placeholder = "0",
                     trailingText = "ريال يمني YER",
                     leadingIcon = Icons.Default.Payments,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    visualTransformation = ThousandsSeparatorVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Next
+                    ),
+                    visualTransformation = visualTransformation,
                     isError = uiState.amountError != null,
                     supportingText = uiState.amountError
                 )
@@ -188,7 +197,11 @@ fun AddTransactionContent(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(uiState.availableCategories, key = { it.id }) { category ->
+                    items(
+                        items = uiState.availableCategories,
+                        key = { it.id },
+                        contentType = { "category_select_item" }
+                    ) { category ->
                         val isSelected = uiState.selectedCategory?.id == category.id
                         val catColor = CategoryIconHelper.getColor(category.iconKey)
                         val catIcon = CategoryIconHelper.getIcon(category.iconKey)
@@ -269,6 +282,13 @@ fun AddTransactionContent(
                     label = "ملاحظات وتفاصيل إضافية (اختياري)",
                     placeholder = "اكتب أي تفاصيل أخرى عن هذه المعاملة...",
                     leadingIcon = Icons.Default.Description,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { focusManager.clearFocus() }
+                    ),
                     singleLine = false,
                     maxLines = 3
                 )
@@ -278,7 +298,10 @@ fun AddTransactionContent(
             // زر الحفظ الرئيسي مع حماية ضد النقر المتكرر
             item {
                 Button(
-                    onClick = onSaveClick,
+                    onClick = {
+                        focusManager.clearFocus()
+                        onSaveClick()
+                    },
                     enabled = !uiState.isSaving,
                     modifier = Modifier
                         .fillMaxWidth()

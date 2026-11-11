@@ -1,10 +1,12 @@
 package com.masroofi.app.domain.calculations
 
+import androidx.compose.runtime.Immutable
 import java.time.YearMonth
 
 /**
  * نموذج ملخص المؤشرات المالية للشهر المختار في تطبيق مصروفي
  */
+@Immutable
 data class FinancialSummary(
     val yearMonth: YearMonth,
     val totalDailyExpenses: Long = 0L,

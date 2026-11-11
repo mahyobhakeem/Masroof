@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.masroofi.app.domain.calculations.CategoryExpenseSummary
 import com.masroofi.app.domain.calculations.MonthlyComparisonItem
 import com.masroofi.app.domain.calculations.MonthlyReportData
@@ -43,6 +44,8 @@ import com.masroofi.app.utils.formatNumber
 import com.masroofi.app.utils.formatYearMonth
 import java.time.YearMonth
 
+private val GridLevels = floatArrayOf(0.0f, 0.33f, 0.66f)
+
 /**
  * شاشة التقارير والإحصائيات المالية المربوطة بالبيانات الحقيقية لقاعدة البيانات
  */
@@ -51,7 +54,7 @@ fun ReportsScreen(
     viewModel: ReportsViewModel,
     modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     ReportsContent(
         uiState = uiState,
@@ -534,6 +537,9 @@ private fun ExpenseBreakdownDonutChartCard(
                         .padding(8.dp)
                 ) {
                     val strokePx = strokeWidthDp.toPx()
+                    val selectedStrokePx = strokePx + 6.dp.toPx()
+                    val normalStroke = Stroke(width = strokePx, cap = StrokeCap.Butt)
+                    val selectedStroke = Stroke(width = selectedStrokePx, cap = StrokeCap.Butt)
                     val diameter = size.minDimension - strokePx
                     val topLeft = Offset(strokePx / 2f, strokePx / 2f)
                     val arcSize = Size(diameter, diameter)
@@ -553,10 +559,7 @@ private fun ExpenseBreakdownDonutChartCard(
                             useCenter = false,
                             topLeft = topLeft,
                             size = arcSize,
-                            style = Stroke(
-                                width = if (isSelected) strokePx + 6.dp.toPx() else strokePx,
-                                cap = StrokeCap.Butt
-                            )
+                            style = if (isSelected) selectedStroke else normalStroke
                         )
                         startAngle += sweepAngle
                     }
@@ -782,7 +785,7 @@ private fun WeeklySpendingBarChartCard(
                     val bottomY = canvasHeight
 
                     // رسم 3 خطوط إرشادية أفقية منقطة (مستويات 100% و 66% و 33%)
-                    listOf(0.0f, 0.33f, 0.66f).forEach { level ->
+                    GridLevels.forEach { level ->
                         val y = bottomY * level
                         drawLine(
                             color = gridColor,
@@ -996,7 +999,7 @@ private fun MonthlyComparisonBarChartCard(
                     val bottomY = canvasHeight
 
                     // رسم 3 خطوط إرشادية أفقية منقطة (مستويات 100% و 66% و 33%)
-                    listOf(0.0f, 0.33f, 0.66f).forEach { level ->
+                    GridLevels.forEach { level ->
                         val y = bottomY * level
                         drawLine(
                             color = gridColor,

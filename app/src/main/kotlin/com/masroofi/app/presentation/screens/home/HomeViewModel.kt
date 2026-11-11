@@ -1,5 +1,6 @@
 package com.masroofi.app.presentation.screens.home
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -20,6 +21,7 @@ import java.time.YearMonth
 /**
  * حالة واجهة الشاشة الرئيسية لتطبيق مصروفي
  */
+@Immutable
 data class HomeUiState(
     val selectedMonth: YearMonth = YearMonth.now(),
     val summary: FinancialSummary = FinancialSummary(yearMonth = YearMonth.now()),

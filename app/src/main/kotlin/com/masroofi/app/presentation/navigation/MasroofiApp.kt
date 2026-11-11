@@ -1,5 +1,6 @@
 package com.masroofi.app.presentation.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -107,6 +108,15 @@ fun MasroofiApp(
 
     var currentScreen by remember { mutableStateOf(AppScreen.HOME) }
     var showAddTransactionSheet by remember { mutableStateOf(false) }
+
+    // إدارة زر الرجوع في النظام: إغلاق النموذج أولاً، أو الرجوع إلى الشاشة الرئيسية
+    BackHandler(enabled = showAddTransactionSheet) {
+        showAddTransactionSheet = false
+    }
+
+    BackHandler(enabled = !showAddTransactionSheet && currentScreen != AppScreen.HOME) {
+        currentScreen = AppScreen.HOME
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),

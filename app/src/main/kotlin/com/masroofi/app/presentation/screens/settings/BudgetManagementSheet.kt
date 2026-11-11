@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -18,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -138,7 +140,11 @@ fun BudgetManagementSheet(
                     }
                 }
             } else {
-                items(uiState.allBudgets, key = { it.yearMonth }) { budget ->
+                items(
+                    items = uiState.allBudgets,
+                    key = { it.yearMonth },
+                    contentType = { "budget_history_item" }
+                ) { budget ->
                     BudgetHistoryRow(
                         budget = budget,
                         isCurrentMonth = budget.yearMonth == currentYearMonthStr,
@@ -347,6 +353,16 @@ private fun EditBudgetDialog(
 ) {
     var amountText by remember { mutableStateOf(if (budget.amount > 0) budget.amount.toString() else "") }
     var errorText by remember { mutableStateOf<String?>(null) }
+    val visualTransformation = remember { ThousandsSeparatorVisualTransformation() }
+
+    val performSave = {
+        val amount = amountText.toLongOrNull()
+        if (amount == null || amount < 0) {
+            errorText = "يرجى إدخال مبلغ صحيح أكبر من أو يساوي الصفر"
+        } else {
+            onSave(budget.yearMonth, amount)
+        }
+    }
 
     val parsedYm = try {
         YearMonth.parse(budget.yearMonth)
@@ -391,8 +407,14 @@ private fun EditBudgetDialog(
                     },
                     label = "الميزانية الشهرية (ريال يمني)",
                     placeholder = "مثال: 150,000",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    visualTransformation = ThousandsSeparatorVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { performSave() }
+                    ),
+                    visualTransformation = visualTransformation,
                     isError = errorText != null,
                     supportingText = errorText
                 )
@@ -409,14 +431,7 @@ private fun EditBudgetDialog(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
-                        onClick = {
-                            val amount = amountText.toLongOrNull()
-                            if (amount == null || amount < 0) {
-                                errorText = "يرجى إدخال مبلغ صحيح أكبر من أو يساوي الصفر"
-                                return@Button
-                            }
-                            onSave(budget.yearMonth, amount)
-                        },
+                        onClick = performSave,
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Text("حفظ الميزانية")

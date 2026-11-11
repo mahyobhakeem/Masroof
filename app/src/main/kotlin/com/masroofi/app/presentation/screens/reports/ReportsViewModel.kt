@@ -1,5 +1,6 @@
 package com.masroofi.app.presentation.screens.reports
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -14,6 +15,7 @@ import java.time.YearMonth
 /**
  * حالة واجهة شاشة التقارير والإحصائيات (ReportsUiState)
  */
+@Immutable
 data class ReportsUiState(
     val selectedYearMonth: YearMonth = YearMonth.now(),
     val reportData: MonthlyReportData = MonthlyReportData(YearMonth.now()),

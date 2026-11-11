@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import com.masroofi.app.data.preferences.ThemeMode
@@ -18,7 +19,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val app = application as MasroofiApplication
-            val themeMode by app.container.preferencesManager.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
+            val themeMode by app.container.preferencesManager.themeMode.collectAsStateWithLifecycle(initialValue = ThemeMode.SYSTEM)
             val systemInDark = isSystemInDarkTheme()
 
             val isDarkTheme = when (themeMode) {

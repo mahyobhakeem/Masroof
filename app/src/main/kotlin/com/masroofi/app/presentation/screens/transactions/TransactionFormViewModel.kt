@@ -1,5 +1,6 @@
 package com.masroofi.app.presentation.screens.transactions
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -16,6 +17,7 @@ import java.util.UUID
 /**
  * حالة واجهة مستخدم نموذج إضافة وتعديل العملية المالية
  */
+@Immutable
 data class TransactionFormUiState(
     val transactionId: String? = null,
     val type: TransactionType = TransactionType.EXPENSE,
@@ -55,7 +57,7 @@ class TransactionFormViewModel(
      */
     private fun loadCategoriesForType(type: TransactionType, targetCategoryId: String? = null) {
         viewModelScope.launch {
-            categoryRepository.getActiveCategories(type).collect { categories ->
+            categoryRepository.getActiveCategories(type).distinctUntilChanged().collect { categories ->
                 val chosenCategory = if (targetCategoryId != null) {
                     categories.find { it.id == targetCategoryId } ?: categories.firstOrNull()
                 } else {

@@ -1,8 +1,11 @@
 package com.masroofi.app.domain.calculations
 
+import androidx.compose.runtime.Immutable
+
 /**
  * نموذج ملخص نفقات تصنيف مالي محدد خلال الشهر
  */
+@Immutable
 data class CategoryExpenseSummary(
     val categoryId: String,
     val categoryName: String,

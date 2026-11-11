@@ -2,12 +2,15 @@ package com.masroofi.app.presentation.screens.home
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.masroofi.app.presentation.components.MasroofiTextField
@@ -61,14 +64,21 @@ fun SetBudgetDialog(
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
+                val visualTransformation = remember { ThousandsSeparatorVisualTransformation() }
                 MasroofiTextField(
                     value = amountInput,
                     onValueChange = onAmountChange,
                     label = "مبلغ الميزانية",
                     placeholder = "مثال: 100,000",
                     trailingText = "ريال",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    visualTransformation = ThousandsSeparatorVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { onSave() }
+                    ),
+                    visualTransformation = visualTransformation,
                     isError = errorMessage != null,
                     supportingText = errorMessage
                 )

@@ -2,6 +2,7 @@ package com.masroofi.app.presentation.screens.settings
 
 import android.content.Context
 import android.net.Uri
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -29,6 +30,7 @@ import java.util.UUID
 /**
  * حالة واجهة شاشة الإعدادات وإدارة التصنيفات والميزانيات (SettingsUiState)
  */
+@Immutable
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val currentMonthBudget: Long? = null,
@@ -76,28 +78,28 @@ class SettingsViewModel(
     init {
         // مراقبة وضع المظهر من DataStore
         viewModelScope.launch {
-            preferencesManager.themeMode.collect { mode ->
+            preferencesManager.themeMode.distinctUntilChanged().collect { mode ->
                 _uiState.update { it.copy(themeMode = mode) }
             }
         }
 
         // مراقبة ميزانية الشهر الحالي
         viewModelScope.launch {
-            monthlyBudgetRepository.getBudgetForMonth(currentMonthStr).collect { currentBudget ->
+            monthlyBudgetRepository.getBudgetForMonth(currentMonthStr).distinctUntilChanged().collect { currentBudget ->
                 _uiState.update { it.copy(currentMonthBudget = currentBudget?.amount) }
             }
         }
 
         // مراقبة سجل الميزانيات لجميع الأشهر
         viewModelScope.launch {
-            monthlyBudgetRepository.getAllBudgets().collect { budgets ->
+            monthlyBudgetRepository.getAllBudgets().distinctUntilChanged().collect { budgets ->
                 _uiState.update { it.copy(allBudgets = budgets) }
             }
         }
 
         // مراقبة جميع التصنيفات وتحديث عدد العمليات المرتبطة بكل تصنيف
         viewModelScope.launch {
-            categoryRepository.getAllCategories().collect { categories ->
+            categoryRepository.getAllCategories().distinctUntilChanged().collect { categories ->
                 // تحديث عدادات العمليات لكل تصنيف
                 val counts = categories.associate { cat ->
                     cat.id to categoryRepository.getTransactionCountForCategory(cat.id)

@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.masroofi.app.domain.model.TransactionItem
 import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.presentation.components.CategoryIconHelper
@@ -36,7 +37,7 @@ fun TransactionsHistoryScreen(
     onEditTransaction: (TransactionItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.userMessage) {
@@ -182,7 +183,11 @@ fun TransactionsHistoryContent(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(DateRangeFilter.values()) { period ->
+                    items(
+                        items = DateRangeFilter.values(),
+                        key = { it.name },
+                        contentType = { "date_range_filter" }
+                    ) { period ->
                         val isSelected = uiState.selectedDatePeriod == period
                         FilterChip(
                             selected = isSelected,
@@ -239,7 +244,11 @@ fun TransactionsHistoryContent(
                     }
 
                     // عناصر التصنيفات المتاحة
-                    items(uiState.availableFilterCategories, key = { it.id }) { category ->
+                    items(
+                        items = uiState.availableFilterCategories,
+                        key = { it.id },
+                        contentType = { "category_chip" }
+                    ) { category ->
                         val isSelected = uiState.selectedCategoryId == category.id
                         Surface(
                             modifier = Modifier
@@ -326,7 +335,7 @@ fun TransactionsHistoryContent(
                 }
             } else {
                 groupedTransactions.forEach { (date, transactions) ->
-                    item(key = "date_header_$date") {
+                    item(key = "date_header_$date", contentType = "date_header") {
                         Surface(
                             shape = RoundedCornerShape(8.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
@@ -387,7 +396,11 @@ fun TransactionsHistoryContent(
                         }
                     }
 
-                    items(transactions, key = { it.id }) { transaction ->
+                    items(
+                        items = transactions,
+                        key = { it.id },
+                        contentType = { "transaction_row" }
+                    ) { transaction ->
                         RealTransactionRowItem(
                             transaction = transaction,
                             onClick = { selectedTransactionForDetails = transaction }
