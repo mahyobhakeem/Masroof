@@ -29,6 +29,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.masroofi.app.MasroofiApplication
+import com.masroofi.app.domain.model.CurrencyCatalog
+import com.masroofi.app.presentation.components.LocalAppCurrency
+import com.masroofi.app.presentation.components.WelcomeCurrencyDialog
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import com.masroofi.app.presentation.screens.home.HomeScreen
 import com.masroofi.app.presentation.screens.home.HomeViewModel
 import com.masroofi.app.presentation.screens.home.HomeViewModelFactory
@@ -107,6 +112,30 @@ fun MasroofiApp(
         )
     )
 
+    val coroutineScope = rememberCoroutineScope()
+    val selectedCurrencyCode by container.preferencesManager.selectedCurrencyCode.collectAsState(initial = "YER")
+    val hasSelectedCurrency by container.preferencesManager.hasSelectedCurrency.collectAsState(initial = true)
+    val activeCurrency = remember(selectedCurrencyCode) {
+        CurrencyCatalog.getCurrencyByCode(selectedCurrencyCode)
+    }
+
+    var showWelcomeCurrencyDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        val hasSelected = container.preferencesManager.hasSelectedCurrency.first()
+        if (!hasSelected) {
+            val transactions = container.transactionRepository.getAllTransactions().first()
+            if (transactions.isNotEmpty()) {
+                // مستخدم سابق لديه عمليات مسجلة: اعتماد الريال اليمني وتفعيل الإشعار تلقائياً دون إزعاجه
+                container.preferencesManager.setSelectedCurrencyCode("YER")
+                container.preferencesManager.setHasSelectedCurrency(true)
+            } else {
+                // مستخدم جديد كلياً: إظهار نافذة الترحيب لاختيار عملته الرئيسية
+                showWelcomeCurrencyDialog = true
+            }
+        }
+    }
+
     var currentScreen by remember { mutableStateOf(AppScreen.HOME) }
     var showAddTransactionSheet by remember { mutableStateOf(false) }
 
@@ -119,68 +148,84 @@ fun MasroofiApp(
         currentScreen = AppScreen.HOME
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            if (!showAddTransactionSheet) {
-                MasroofiBottomNavigationBar(
-                    currentScreen = currentScreen,
-                    onScreenSelected = { currentScreen = it },
-                    onAddClick = {
-                        formViewModel.initForAdd()
-                        showAddTransactionSheet = true
+    CompositionLocalProvider(LocalAppCurrency provides activeCurrency) {
+        Scaffold(
+            modifier = modifier.fillMaxSize(),
+            containerColor = MaterialTheme.colorScheme.background,
+            bottomBar = {
+                if (!showAddTransactionSheet) {
+                    MasroofiBottomNavigationBar(
+                        currentScreen = currentScreen,
+                        onScreenSelected = { currentScreen = it },
+                        onAddClick = {
+                            formViewModel.initForAdd()
+                            showAddTransactionSheet = true
+                        }
+                    )
+                }
+            }
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                AnimatedContent(
+                    targetState = currentScreen,
+                    label = "ScreenTransition"
+                ) { targetScreen ->
+                    when (targetScreen) {
+                        AppScreen.HOME -> HomeScreen(
+                            viewModel = homeViewModel,
+                            onNavigateToTransactions = { currentScreen = AppScreen.TRANSACTIONS },
+                            onEditTransaction = { transaction ->
+                                formViewModel.initForEdit(transaction)
+                                showAddTransactionSheet = true
+                            }
+                        )
+                        AppScreen.TRANSACTIONS -> TransactionsHistoryScreen(
+                            viewModel = historyViewModel,
+                            onEditTransaction = { transaction ->
+                                formViewModel.initForEdit(transaction)
+                                showAddTransactionSheet = true
+                            }
+                        )
+                        AppScreen.REPORTS -> ReportsScreen(
+                            viewModel = reportsViewModel
+                        )
+                        AppScreen.SETTINGS -> SettingsScreen(
+                            viewModel = settingsViewModel
+                        )
                     }
-                )
+                }
+
+                // شاشة إضافة / تعديل العملية المالية
+                if (showAddTransactionSheet) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        AddTransactionScreen(
+                            viewModel = formViewModel,
+                            onDismiss = { showAddTransactionSheet = false }
+                        )
+                    }
+                }
             }
         }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            AnimatedContent(
-                targetState = currentScreen,
-                label = "ScreenTransition"
-            ) { targetScreen ->
-                when (targetScreen) {
-                    AppScreen.HOME -> HomeScreen(
-                        viewModel = homeViewModel,
-                        onNavigateToTransactions = { currentScreen = AppScreen.TRANSACTIONS },
-                        onEditTransaction = { transaction ->
-                            formViewModel.initForEdit(transaction)
-                            showAddTransactionSheet = true
-                        }
-                    )
-                    AppScreen.TRANSACTIONS -> TransactionsHistoryScreen(
-                        viewModel = historyViewModel,
-                        onEditTransaction = { transaction ->
-                            formViewModel.initForEdit(transaction)
-                            showAddTransactionSheet = true
-                        }
-                    )
-                    AppScreen.REPORTS -> ReportsScreen(
-                        viewModel = reportsViewModel
-                    )
-                    AppScreen.SETTINGS -> SettingsScreen(
-                        viewModel = settingsViewModel
-                    )
-                }
-            }
 
-            // شاشة إضافة / تعديل العملية المالية
-            if (showAddTransactionSheet) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    AddTransactionScreen(
-                        viewModel = formViewModel,
-                        onDismiss = { showAddTransactionSheet = false }
-                    )
+        // نافذة الترحيب لاختيار العملة للمستخدم الجديد
+        if (showWelcomeCurrencyDialog) {
+            WelcomeCurrencyDialog(
+                initialCurrencyCode = selectedCurrencyCode,
+                onConfirm = { currencyCode ->
+                    coroutineScope.launch {
+                        container.preferencesManager.setSelectedCurrencyCode(currencyCode)
+                        container.preferencesManager.setHasSelectedCurrency(true)
+                        showWelcomeCurrencyDialog = false
+                    }
                 }
-            }
+            )
         }
     }
 }

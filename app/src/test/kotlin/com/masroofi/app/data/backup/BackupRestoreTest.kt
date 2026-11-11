@@ -148,8 +148,8 @@ class BackupRestoreTest {
             {
                 "backupFormatVersion": 1,
                 "createdAt": "2026-11-11",
-                "appName": "Masroofi",
-                "currency": "USD",
+                "appName": "Masroof",
+                "currency": "XYZ_INVALID",
                 "categories": [],
                 "transactions": [],
                 "monthlyBudgets": []
@@ -158,7 +158,7 @@ class BackupRestoreTest {
 
         val result = backupRestoreManager.validateBackupJson(wrongCurrencyJson)
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull()?.message?.contains("غير متوافقة مع عملة التطبيق (YER)") == true)
+        assertTrue(result.exceptionOrNull()?.message?.contains("غير معتمدة") == true)
     }
 
     @Test

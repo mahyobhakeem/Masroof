@@ -33,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.masroofi.app.domain.model.Category
 import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.presentation.components.CategoryIconHelper
+import com.masroofi.app.presentation.components.LocalAppCurrency
 import com.masroofi.app.presentation.components.MasroofiTextField
 import com.masroofi.app.presentation.components.ThousandsSeparatorVisualTransformation
 import com.masroofi.app.presentation.theme.*
@@ -156,7 +157,7 @@ fun AddTransactionContent(
                     onValueChange = onAmountChange,
                     label = "المبلغ المالي",
                     placeholder = "0",
-                    trailingText = "ريال يمني YER",
+                    trailingText = "${LocalAppCurrency.current.nameArabic} (${LocalAppCurrency.current.symbolArabic})",
                     leadingIcon = Icons.Default.Payments,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,

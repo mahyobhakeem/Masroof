@@ -10,5 +10,6 @@ import androidx.compose.runtime.Immutable
 data class MonthlyBudget(
     val id: String,
     val yearMonth: String, // بصيغة YYYY-MM
-    val amount: Long // بالريال اليمني خالية من الكسور
+    val amount: Long, // خالية من الكسور
+    val currencyCode: String = "YER" // كود العملة (ISO 4217)
 )

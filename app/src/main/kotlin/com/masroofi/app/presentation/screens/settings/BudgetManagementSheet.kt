@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.masroofi.app.domain.model.MonthlyBudget
+import com.masroofi.app.presentation.components.LocalAppCurrency
 import com.masroofi.app.presentation.components.MasroofiTextField
 import com.masroofi.app.presentation.components.ThousandsSeparatorVisualTransformation
 import com.masroofi.app.presentation.theme.IncomeGreen
@@ -249,7 +250,7 @@ private fun CurrentMonthBudgetCard(
                         color = TextSecondary
                     )
                     Text(
-                        text = if (currentAmount != null) "${formatNumber(currentAmount)} ريال" else "غير محددة",
+                        text = if (currentAmount != null) "${formatNumber(currentAmount)} ${LocalAppCurrency.current.symbolArabic}" else "غير محددة",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = if (currentAmount != null) PrimaryGreen else TextSecondary
@@ -322,7 +323,7 @@ private fun BudgetHistoryRow(
                         }
                     }
                     Text(
-                        text = "${formatNumber(budget.amount)} ريال يمني",
+                        text = "${formatNumber(budget.amount)} ${LocalAppCurrency.current.symbolArabic}",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary,
                         fontSize = 11.sp
@@ -392,7 +393,7 @@ private fun EditBudgetDialog(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "أدخل الحد الأقصى للمصروفات المخططة لهذا الشهر بالريال اليمني",
+                    text = "أدخل الحد الأقصى للمصروفات المخططة لهذا الشهر بـ (${LocalAppCurrency.current.nameArabic})",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary
                 )
@@ -405,7 +406,7 @@ private fun EditBudgetDialog(
                         amountText = digits
                         if (digits.isNotEmpty()) errorText = null
                     },
-                    label = "الميزانية الشهرية (ريال يمني)",
+                    label = "الميزانية الشهرية (${LocalAppCurrency.current.symbolArabic})",
                     placeholder = "مثال: 150,000",
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,

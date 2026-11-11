@@ -18,10 +18,11 @@ data class CategoryBackupDto(
 data class TransactionBackupDto(
     val id: String,
     val type: String, // "EXPENSE" أو "INCOME"
-    val amount: Long, // بالريال اليمني
+    val amount: Long, // خالي من الكسور
     val categoryId: String,
     val transactionDate: String, // بصيغة ISO YYYY-MM-DD
     val note: String? = null,
+    val currencyCode: String = "YER",
     val createdAt: Long = 0L,
     val updatedAt: Long = 0L
 )
@@ -32,7 +33,8 @@ data class TransactionBackupDto(
 data class MonthlyBudgetBackupDto(
     val id: String,
     val yearMonth: String, // بصيغة YYYY-MM
-    val amount: Long // بالريال اليمني
+    val amount: Long, // خالي من الكسور
+    val currencyCode: String = "YER"
 )
 
 /**

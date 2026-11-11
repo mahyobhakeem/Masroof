@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.masroofi.app.domain.model.TransactionItem
 import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.presentation.components.CategoryIconHelper
+import com.masroofi.app.presentation.components.LocalAppCurrency
 import com.masroofi.app.presentation.theme.*
 import com.masroofi.app.utils.formatNumber
 import java.text.SimpleDateFormat
@@ -82,7 +83,7 @@ fun TransactionDetailsBottomSheet(
 
                 // المبلغ المالي بخط عريض وواضح
                 Text(
-                    text = "${if (isExpense) "-" else "+"} ${formatNumber(transaction.amount)} ريال",
+                    text = "${if (isExpense) "-" else "+"} ${formatNumber(transaction.amount)} ${LocalAppCurrency.current.symbolArabic}",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = typeColor

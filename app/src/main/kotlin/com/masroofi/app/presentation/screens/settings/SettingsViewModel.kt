@@ -13,6 +13,7 @@ import com.masroofi.app.data.export.CsvExporter
 import com.masroofi.app.data.preferences.ThemeMode
 import com.masroofi.app.data.preferences.UserPreferences
 import com.masroofi.app.domain.model.Category
+import com.masroofi.app.domain.model.CurrencyCatalog
 import com.masroofi.app.domain.model.MonthlyBudget
 import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.domain.repository.CategoryRepository
@@ -33,6 +34,11 @@ import java.util.UUID
 @Immutable
 data class SettingsUiState(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val selectedCurrencyCode: String = CurrencyCatalog.DEFAULT_CURRENCY_CODE,
+    val isCurrencySelectionOpen: Boolean = false,
+    val showCurrencyChangeWarningDialog: Boolean = false,
+    val pendingCurrencyCode: String? = null,
+    val hasExistingTransactions: Boolean = false,
     val currentMonthBudget: Long? = null,
     val allBudgets: List<MonthlyBudget> = emptyList(),
     val allCategories: List<Category> = emptyList(),
@@ -111,6 +117,79 @@ class SettingsViewModel(
                     )
                 }
             }
+        }
+
+        // مراقبة كود العملة الرئيسية المختارة من DataStore
+        viewModelScope.launch {
+            preferencesManager.selectedCurrencyCode.distinctUntilChanged().collect { code ->
+                _uiState.update { it.copy(selectedCurrencyCode = code) }
+            }
+        }
+
+        // فحص وجود عمليات مالية سابقة للتحذير عند تغيير العملة
+        viewModelScope.launch {
+            transactionRepository.getAllTransactions().distinctUntilChanged().collect { txs ->
+                _uiState.update { it.copy(hasExistingTransactions = txs.isNotEmpty()) }
+            }
+        }
+    }
+
+    // ==========================================
+    // 0. إدارة العملة الرئيسية (Currency Management)
+    // ==========================================
+
+    fun openCurrencySelection() {
+        _uiState.update { it.copy(isCurrencySelectionOpen = true) }
+    }
+
+    fun dismissCurrencySelection() {
+        _uiState.update { it.copy(isCurrencySelectionOpen = false) }
+    }
+
+    fun selectCurrency(code: String) {
+        val current = _uiState.value.selectedCurrencyCode
+        if (code.equals(current, ignoreCase = true)) {
+            _uiState.update { it.copy(isCurrencySelectionOpen = false) }
+            return
+        }
+
+        if (_uiState.value.hasExistingTransactions) {
+            _uiState.update {
+                it.copy(
+                    isCurrencySelectionOpen = false,
+                    showCurrencyChangeWarningDialog = true,
+                    pendingCurrencyCode = code
+                )
+            }
+        } else {
+            _uiState.update { it.copy(isCurrencySelectionOpen = false) }
+            viewModelScope.launch {
+                preferencesManager.setSelectedCurrencyCode(code)
+                preferencesManager.setHasSelectedCurrency(true)
+            }
+        }
+    }
+
+    fun confirmCurrencyChange() {
+        val newCode = _uiState.value.pendingCurrencyCode ?: return
+        _uiState.update {
+            it.copy(
+                showCurrencyChangeWarningDialog = false,
+                pendingCurrencyCode = null
+            )
+        }
+        viewModelScope.launch {
+            preferencesManager.setSelectedCurrencyCode(newCode)
+            preferencesManager.setHasSelectedCurrency(true)
+        }
+    }
+
+    fun dismissCurrencyChangeWarning() {
+        _uiState.update {
+            it.copy(
+                showCurrencyChangeWarningDialog = false,
+                pendingCurrencyCode = null
+            )
         }
     }
 

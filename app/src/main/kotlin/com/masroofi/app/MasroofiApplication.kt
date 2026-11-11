@@ -42,7 +42,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val backupManager: BackupManager by lazy {
-        BackupRestoreManager(database)
+        BackupRestoreManager(database, preferencesManager = preferencesManager)
     }
 
     override val categoryRepository: CategoryRepository by lazy {

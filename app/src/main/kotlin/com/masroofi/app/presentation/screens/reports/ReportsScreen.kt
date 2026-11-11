@@ -40,6 +40,7 @@ import com.masroofi.app.domain.calculations.MonthlyReportData
 import com.masroofi.app.domain.calculations.WeeklySpendingItem
 import com.masroofi.app.domain.model.ReportPeriodMode
 import com.masroofi.app.presentation.components.CategoryIconHelper
+import com.masroofi.app.presentation.components.LocalAppCurrency
 import com.masroofi.app.presentation.components.MasroofDatePickerDialog
 import com.masroofi.app.presentation.components.MasroofDateRangeDialog
 import com.masroofi.app.presentation.theme.*
@@ -342,6 +343,7 @@ private fun ReportsSummaryCards(
     netCashflow: Long,
     averageDailyExpense: Long
 ) {
+    val currencySymbol = LocalAppCurrency.current.symbolArabic
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -385,7 +387,7 @@ private fun ReportsSummaryCards(
                             fontSize = 11.sp
                         )
                         Text(
-                            text = "${formatNumber(totalExpenses)} ريال",
+                            text = "${formatNumber(totalExpenses)} $currencySymbol",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = ExpenseRed
@@ -428,7 +430,7 @@ private fun ReportsSummaryCards(
                             fontSize = 11.sp
                         )
                         Text(
-                            text = "${formatNumber(totalIncome)} ريال",
+                            text = "${formatNumber(totalIncome)} $currencySymbol",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = IncomeGreen
@@ -481,7 +483,7 @@ private fun ReportsSummaryCards(
                             fontSize = 11.sp
                         )
                         Text(
-                            text = "$netPrefix${formatNumber(kotlin.math.abs(netCashflow))} ريال",
+                            text = "$netPrefix${formatNumber(kotlin.math.abs(netCashflow))} $currencySymbol",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = netColor
@@ -524,7 +526,7 @@ private fun ReportsSummaryCards(
                             fontSize = 11.sp
                         )
                         Text(
-                            text = "${formatNumber(averageDailyExpense)} ريال",
+                            text = "${formatNumber(averageDailyExpense)} $currencySymbol",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary
@@ -600,6 +602,7 @@ private fun ExpenseBreakdownDonutChartCard(
     selectedCategory: CategoryExpenseSummary?,
     onCategorySelect: (CategoryExpenseSummary?) -> Unit
 ) {
+    val currencySymbol = LocalAppCurrency.current.symbolArabic
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -678,7 +681,7 @@ private fun ExpenseBreakdownDonutChartCard(
                             textAlign = TextAlign.Center
                         )
                         Text(
-                            text = "${formatNumber(selectedCategory.totalSpent)} ريال",
+                            text = "${formatNumber(selectedCategory.totalSpent)} $currencySymbol",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -698,7 +701,7 @@ private fun ExpenseBreakdownDonutChartCard(
                             textAlign = TextAlign.Center
                         )
                         Text(
-                            text = "${formatNumber(totalExpenses)} ريال",
+                            text = "${formatNumber(totalExpenses)} $currencySymbol",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -811,7 +814,7 @@ private fun ExpenseBreakdownDonutChartCard(
                             // النسبة المئوية والمبلغ
                             Column(horizontalAlignment = Alignment.End) {
                                 Text(
-                                    text = "${formatNumber(category.totalSpent)} ريال",
+                                    text = "${formatNumber(category.totalSpent)} $currencySymbol",
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = ExpenseRed
@@ -840,6 +843,7 @@ private fun WeeklySpendingBarChartCard(
     peakPeriod: String?,
     averageWeekly: Long
 ) {
+    val currencySymbol = LocalAppCurrency.current.symbolArabic
     val maxAmount = remember(weeklyList) {
         weeklyList.maxOfOrNull { it.amount }?.coerceAtLeast(1L) ?: 1L
     }
@@ -979,7 +983,7 @@ private fun WeeklySpendingBarChartCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "متوسط الإنفاق الأسبوعي: ${formatNumber(averageWeekly)} ريال",
+                    text = "متوسط الإنفاق الأسبوعي: ${formatNumber(averageWeekly)} $currencySymbol",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary
                 )

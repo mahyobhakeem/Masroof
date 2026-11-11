@@ -10,12 +10,13 @@ import java.time.LocalDate
 data class TransactionItem(
     val id: String,
     val type: TransactionType,
-    val amount: Long, // بالريال اليمني أكبر من صفر دائماً
+    val amount: Long, // خالي من الكسور أكبر من صفر دائماً
     val categoryId: String,
     val categoryName: String? = null,
     val categoryIconKey: String? = null,
     val transactionDate: String, // بصيغة ISO YYYY-MM-DD
     val note: String? = null,
+    val currencyCode: String = "YER", // كود العملة (ISO 4217)
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 ) {

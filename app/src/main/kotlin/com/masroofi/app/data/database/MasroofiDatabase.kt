@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.masroofi.app.data.dao.CategoryDao
 import com.masroofi.app.data.dao.MonthlyBudgetDao
@@ -25,7 +26,7 @@ import kotlinx.coroutines.launch
         TransactionEntity::class,
         MonthlyBudgetEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class MasroofiDatabase : RoomDatabase() {
@@ -36,6 +37,18 @@ abstract class MasroofiDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "masroofi.db"
+
+        /**
+         * ترحيل آمن لقاعدة البيانات من الإصدار 1 إلى 2:
+         * إضافة عمود كود العملة (currencyCode) إلى جدولي transactions و monthly_budgets
+         * مع تعيين القيمة الافتراضية 'YER' (الريال اليمني) لجميع السجلات القديمة تلقائياً دون أي فقدان للبيانات
+         */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `transactions` ADD COLUMN `currencyCode` TEXT NOT NULL DEFAULT 'YER'")
+                db.execSQL("ALTER TABLE `monthly_budgets` ADD COLUMN `currencyCode` TEXT NOT NULL DEFAULT 'YER'")
+            }
+        }
 
         @Volatile
         private var INSTANCE: MasroofiDatabase? = null
@@ -50,6 +63,7 @@ abstract class MasroofiDatabase : RoomDatabase() {
                     MasroofiDatabase::class.java,
                     DATABASE_NAME
                 )
+                    .addMigrations(MIGRATION_1_2)
                     .addCallback(DatabaseCallback(scope))
                     .build()
                 INSTANCE = instance

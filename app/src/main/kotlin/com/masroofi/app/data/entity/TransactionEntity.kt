@@ -31,10 +31,11 @@ data class TransactionEntity(
     @PrimaryKey
     val id: String,
     val type: TransactionType,
-    val amount: Long, // بالريال اليمني كعدد صحيح أكبر من صفر دائماً
+    val amount: Long, // بالريال أو العملة المختارة كعدد صحيح أكبر من صفر دائماً
     val categoryId: String,
     val transactionDate: String, // بصيغة ISO YYYY-MM-DD
     val note: String? = null,
+    val currencyCode: String = "YER", // كود العملة وفق معيار ISO 4217
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 ) {

@@ -20,6 +20,7 @@ fun TransactionEntity.toDomain(
         categoryIconKey = categoryIconKey,
         transactionDate = transactionDate,
         note = note,
+        currencyCode = currencyCode,
         createdAt = createdAt,
         updatedAt = updatedAt
     )
@@ -35,6 +36,7 @@ fun TransactionWithCategory.toDomain(): TransactionItem {
         categoryIconKey = category?.iconKey,
         transactionDate = transaction.transactionDate,
         note = transaction.note,
+        currencyCode = transaction.currencyCode,
         createdAt = transaction.createdAt,
         updatedAt = transaction.updatedAt
     )
@@ -48,6 +50,7 @@ fun TransactionItem.toEntity(): TransactionEntity {
         categoryId = categoryId,
         transactionDate = transactionDate,
         note = note,
+        currencyCode = currencyCode,
         createdAt = createdAt,
         updatedAt = updatedAt
     )

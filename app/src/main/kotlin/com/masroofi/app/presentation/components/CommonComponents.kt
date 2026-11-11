@@ -25,7 +25,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.masroofi.app.domain.model.CurrencyCatalog
+import com.masroofi.app.domain.model.CurrencyInfo
 import com.masroofi.app.presentation.theme.*
+
+/**
+ * مزود العملة النشطة عبر شجرة واجهات Compose لتطبيق مصروف
+ */
+val LocalAppCurrency = compositionLocalOf { CurrencyCatalog.defaultCurrency }
 
 /**
  * مكون مربع الإدخال المعتمد وفق المواصفات الصارمة (OutlinedTextField)

@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.masroofi.app.domain.model.CurrencyCatalog
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -30,20 +31,73 @@ enum class ThemeMode {
 interface UserPreferences {
     val themeMode: Flow<ThemeMode>
     val isDarkMode: Flow<Boolean>
+    val selectedCurrencyCode: Flow<String>
+    val hasSelectedCurrency: Flow<Boolean>
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setDarkMode(isDark: Boolean)
+    suspend fun setSelectedCurrencyCode(code: String)
+    suspend fun setHasSelectedCurrency(hasSelected: Boolean)
 }
 
 /**
  * مدير التفضيلات والإعدادات المحلية عبر DataStore
- * يقتصر دوره حصرياً على حفظ تفضيلات المظهر (الوضع الفاتح / الداكن / التلقائي)
- * بينما تحفظ الميزانيات والتصنيفات والعمليات في قاعدة بيانات Room المحلية
+ * يحفظ تفضيلات المظهر والعملة الرئيسية وحالة التهيئة الأولية
  */
 open class PreferencesManager(private val context: Context) : UserPreferences {
 
     private object PreferencesKeys {
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val IS_DARK_MODE = booleanPreferencesKey("is_dark_mode")
+        val SELECTED_CURRENCY_CODE = stringPreferencesKey("selected_currency_code")
+        val HAS_SELECTED_CURRENCY = booleanPreferencesKey("has_selected_currency")
+    }
+
+    /**
+     * تدفق كود العملة الرئيسية المختارة (افتراضياً: YER - الريال اليمني)
+     */
+    override val selectedCurrencyCode: Flow<String> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[PreferencesKeys.SELECTED_CURRENCY_CODE] ?: CurrencyCatalog.DEFAULT_CURRENCY_CODE
+        }
+
+    /**
+     * تدفق حالة ما إذا كان المستخدم قد اختار عملته سابقاً (للتمييز بين المستخدم الجديد والحالي)
+     */
+    override val hasSelectedCurrency: Flow<Boolean> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[PreferencesKeys.HAS_SELECTED_CURRENCY] ?: false
+        }
+
+    /**
+     * حفظ كود العملة الرئيسية المختارة
+     */
+    override suspend fun setSelectedCurrencyCode(code: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.SELECTED_CURRENCY_CODE] = code.trim().uppercase()
+        }
+    }
+
+    /**
+     * تعيين حالة اختيار العملة الأولية
+     */
+    override suspend fun setHasSelectedCurrency(hasSelected: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.HAS_SELECTED_CURRENCY] = hasSelected
+        }
     }
 
     /**

@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.masroofi.app.presentation.components.LocalAppCurrency
 import com.masroofi.app.presentation.components.MasroofiTextField
 import com.masroofi.app.presentation.components.ThousandsSeparatorVisualTransformation
 import com.masroofi.app.utils.formatYearMonth
@@ -52,13 +53,14 @@ fun SetBudgetDialog(
             }
         },
         text = {
+            val currency = LocalAppCurrency.current
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp)
             ) {
                 Text(
-                    text = "حدد إجمالي الميزانية المرصودة للإنفاق في هذا الشهر بالريال اليمني:",
+                    text = "حدد إجمالي الميزانية المرصودة للإنفاق في هذا الشهر بـ (${currency.nameArabic}):",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -70,7 +72,7 @@ fun SetBudgetDialog(
                     onValueChange = onAmountChange,
                     label = "مبلغ الميزانية",
                     placeholder = "مثال: 100,000",
-                    trailingText = "ريال",
+                    trailingText = currency.symbolArabic,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
                         imeAction = ImeAction.Done

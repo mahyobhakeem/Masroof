@@ -23,7 +23,11 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.masroofi.app.data.preferences.ThemeMode
 import com.masroofi.app.domain.model.Category
+import com.masroofi.app.domain.model.CurrencyCatalog
 import com.masroofi.app.domain.model.TransactionType
+import com.masroofi.app.presentation.components.CurrencyChangeConfirmationDialog
+import com.masroofi.app.presentation.components.CurrencySelectionSheet
+import com.masroofi.app.presentation.components.LocalAppCurrency
 import com.masroofi.app.presentation.components.MasroofiExpandableCard
 import com.masroofi.app.presentation.components.MasroofiItemCard
 import com.masroofi.app.presentation.theme.*
@@ -104,8 +108,28 @@ fun SettingsScreen(
         },
         onConfirmRestore = { viewModel.confirmRestore() },
         onCancelRestore = { viewModel.cancelRestore() },
+        onOpenCurrencySelection = { viewModel.openCurrencySelection() },
         modifier = modifier
     )
+
+    if (uiState.isCurrencySelectionOpen) {
+        CurrencySelectionSheet(
+            selectedCurrencyCode = uiState.selectedCurrencyCode,
+            onCurrencySelected = { viewModel.selectCurrency(it) },
+            onDismiss = { viewModel.dismissCurrencySelection() }
+        )
+    }
+
+    if (uiState.showCurrencyChangeWarningDialog) {
+        uiState.pendingCurrencyCode?.let { code ->
+            val newCurrency = CurrencyCatalog.getCurrencyByCode(code)
+            CurrencyChangeConfirmationDialog(
+                newCurrency = newCurrency,
+                onConfirm = { viewModel.confirmCurrencyChange() },
+                onDismiss = { viewModel.dismissCurrencyChangeWarning() }
+            )
+        }
+    }
 }
 
 /**
@@ -139,6 +163,7 @@ fun SettingsContent(
     onCloseRestoreSelection: () -> Unit = {},
     onConfirmRestore: () -> Unit = {},
     onCancelRestore: () -> Unit = {},
+    onOpenCurrencySelection: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -193,8 +218,9 @@ fun SettingsContent(
 
             // 2. بطاقة إدارة الميزانية الشهرية
             item {
+                val currencySymbol = LocalAppCurrency.current.symbolArabic
                 val budgetText = if (uiState.currentMonthBudget != null) {
-                    "${formatNumber(uiState.currentMonthBudget)} ريال للشهر الحالي"
+                    "${formatNumber(uiState.currentMonthBudget)} $currencySymbol للشهر الحالي"
                 } else {
                     "غير محددة للشهر الحالي • انقر للإدارة"
                 }
@@ -220,31 +246,60 @@ fun SettingsContent(
 
             // 4. بطاقة تخصيص التطبيق والعملة (قسم قابل للتوسيع)
             item {
+                val currentCurrency = remember(uiState.selectedCurrencyCode) {
+                    CurrencyCatalog.getCurrencyByCode(uiState.selectedCurrencyCode)
+                }
+
                 MasroofiExpandableCard(
                     title = "تخصيص التطبيق والعملة",
                     icon = Icons.Default.Tune,
                     iconColor = CategoryTransport
                 ) {
-                    // العملة الرسمية
+                    // بطاقة اختيار العملة الرئيسية التفاعلية
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(onClick = onOpenCurrencySelection)
                             .padding(vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "العملة المعتمدة",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "الريال اليمني (YER)",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Column {
+                            Text(
+                                text = "العملة الرئيسية",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "انقر لتغيير عملة الحسابات والعرض",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary,
+                                fontSize = 11.sp
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = currentCurrency.flagEmoji,
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.padding(end = 6.dp)
+                                )
+                                Text(
+                                    text = "${currentCurrency.nameArabic} (${currentCurrency.code})",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     }
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.8.dp)

@@ -9,7 +9,10 @@ import com.masroofi.app.data.database.MasroofiDatabase
 import com.masroofi.app.data.entity.CategoryEntity
 import com.masroofi.app.data.entity.MonthlyBudgetEntity
 import com.masroofi.app.data.entity.TransactionEntity
+import com.masroofi.app.data.preferences.UserPreferences
+import com.masroofi.app.domain.model.CurrencyCatalog
 import com.masroofi.app.domain.model.TransactionType
+import kotlinx.coroutines.flow.firstOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
@@ -45,7 +48,8 @@ class BackupRestoreManager(
     private val database: MasroofiDatabase? = null,
     private val categoryDaoProvider: (() -> CategoryDao)? = null,
     private val transactionDaoProvider: (() -> TransactionDao)? = null,
-    private val budgetDaoProvider: (() -> MonthlyBudgetDao)? = null
+    private val budgetDaoProvider: (() -> MonthlyBudgetDao)? = null,
+    private val preferencesManager: UserPreferences? = null
 ) : BackupManager {
 
     private val categoryDao: CategoryDao
@@ -78,12 +82,13 @@ class BackupRestoreManager(
         val budgets = budgetDao.getAllBudgetEntities()
 
         val nowStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+        val currentCurrency = preferencesManager?.selectedCurrencyCode?.firstOrNull() ?: CurrencyCatalog.DEFAULT_CURRENCY_CODE
 
         val root = JSONObject()
         root.put("backupFormatVersion", 1)
         root.put("createdAt", nowStr)
         root.put("appName", "Masroof")
-        root.put("currency", "YER")
+        root.put("currency", currentCurrency)
 
         // 1. مصفوفة التصنيفات
         val categoriesArray = JSONArray()
@@ -113,6 +118,7 @@ class BackupRestoreManager(
             } else {
                 txObj.put("note", JSONObject.NULL)
             }
+            txObj.put("currencyCode", tx.currencyCode)
             txObj.put("createdAt", tx.createdAt)
             txObj.put("updatedAt", tx.updatedAt)
             transactionsArray.put(txObj)
@@ -126,6 +132,7 @@ class BackupRestoreManager(
             bObj.put("id", b.id)
             bObj.put("yearMonth", b.yearMonth)
             bObj.put("amount", b.amount)
+            bObj.put("currencyCode", b.currencyCode)
             budgetsArray.put(bObj)
         }
         root.put("monthlyBudgets", budgetsArray)
@@ -154,10 +161,11 @@ class BackupRestoreManager(
             return Result.failure(IllegalArgumentException("الملف ليس نسخة احتياطية صالحة لتطبيق مصروف."))
         }
 
-        val currency = root.optString("currency", "")
-        if (currency != "YER") {
+        val currency = root.optString("currency", CurrencyCatalog.DEFAULT_CURRENCY_CODE).ifBlank { CurrencyCatalog.DEFAULT_CURRENCY_CODE }
+        val currencyInfo = CurrencyCatalog.getCurrencyByCode(currency)
+        if (currencyInfo.code != currency.uppercase() && currency != "YER") {
             return Result.failure(
-                IllegalArgumentException("عملة النسخة الاحتياطية ($currency) غير متوافقة مع عملة التطبيق (YER).")
+                IllegalArgumentException("عملة النسخة الاحتياطية ($currency) غير معتمدة في التطبيق.")
             )
         }
 
@@ -227,8 +235,9 @@ class BackupRestoreManager(
                 )
             }
 
+            val txCurrencyCode = txObj.optString("currencyCode", currency).ifBlank { currency }
             transactionsList.add(
-                TransactionBackupDto(id, type, amount, categoryId, transactionDate, note, txCreatedAt, txUpdatedAt)
+                TransactionBackupDto(id, type, amount, categoryId, transactionDate, note, txCurrencyCode, txCreatedAt, txUpdatedAt)
             )
         }
 
@@ -254,7 +263,8 @@ class BackupRestoreManager(
                 return Result.failure(IllegalArgumentException("تنسيق الشهر '$yearMonth' للميزانية غير صالح."))
             }
 
-            budgetsList.add(MonthlyBudgetBackupDto(id, yearMonth, amount))
+            val bCurrencyCode = bObj.optString("currencyCode", currency).ifBlank { currency }
+            budgetsList.add(MonthlyBudgetBackupDto(id, yearMonth, amount, bCurrencyCode))
         }
 
         val payload = BackupPayload(
@@ -313,7 +323,8 @@ class BackupRestoreManager(
                     MonthlyBudgetEntity(
                         id = dto.id,
                         yearMonth = dto.yearMonth,
-                        amount = dto.amount
+                        amount = dto.amount,
+                        currencyCode = dto.currencyCode.ifBlank { payload.currency }
                     )
                 }
                 if (budgetsToInsert.isNotEmpty()) {
@@ -329,6 +340,7 @@ class BackupRestoreManager(
                         categoryId = dto.categoryId,
                         transactionDate = dto.transactionDate,
                         note = dto.note,
+                        currencyCode = dto.currencyCode.ifBlank { payload.currency },
                         createdAt = if (dto.createdAt > 0) dto.createdAt else System.currentTimeMillis(),
                         updatedAt = if (dto.updatedAt > 0) dto.updatedAt else System.currentTimeMillis()
                     )
@@ -337,6 +349,11 @@ class BackupRestoreManager(
                     transactionDao.insertTransactionEntities(transactionsToInsert)
                 }
             }
+
+            // 6. استعادة العملة المختارة في التفضيلات لضمان اتساق الواجهات
+            val restoredCurrency = payload.currency.ifBlank { CurrencyCatalog.DEFAULT_CURRENCY_CODE }
+            preferencesManager?.setSelectedCurrencyCode(restoredCurrency)
+            preferencesManager?.setHasSelectedCurrency(true)
         }
     }
 }

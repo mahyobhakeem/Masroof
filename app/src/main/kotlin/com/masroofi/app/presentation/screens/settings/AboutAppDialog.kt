@@ -97,8 +97,8 @@ fun AboutAppDialog(
                     )
                     InfoFeatureRow(
                         icon = Icons.Default.CheckCircle,
-                        title = "العملة الرسمية المعتمدة",
-                        subtitle = "الريال اليمني (YER) بأرقام قياسية صحيحة دون كسور."
+                        title = "العملات المعتمدة",
+                        subtitle = "دعم كامل لجميع عملات الدول العربية والعملات الدولية (ISO 4217) بأرقام قياسية صحيحة دون كسور."
                     )
                 }
 

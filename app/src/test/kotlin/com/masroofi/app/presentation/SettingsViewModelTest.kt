@@ -316,6 +316,89 @@ class SettingsViewModelTest {
         assertTrue(csv.contains("التاريخ,النوع,التصنيف,المبلغ (ريال يمني),الملاحظات"))
         assertTrue(viewModel.uiState.value.successMessage?.contains("تم تصدير") == true)
     }
+
+    @Test
+    fun `test currency selection sheet open and dismiss`() = runTest {
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isCurrencySelectionOpen)
+
+        viewModel.openCurrencySelection()
+        assertTrue(viewModel.uiState.value.isCurrencySelectionOpen)
+
+        viewModel.dismissCurrencySelection()
+        assertFalse(viewModel.uiState.value.isCurrencySelectionOpen)
+    }
+
+    @Test
+    fun `test select currency with zero transactions updates directly without warning`() = runTest {
+        advanceUntilIdle()
+        assertEquals("YER", viewModel.uiState.value.selectedCurrencyCode)
+        assertFalse(viewModel.uiState.value.hasExistingTransactions)
+
+        // اختيار الريال السعودي SAR عندما لا توجد أي عمليات
+        viewModel.selectCurrency("SAR")
+        advanceUntilIdle()
+
+        assertEquals("SAR", viewModel.uiState.value.selectedCurrencyCode)
+        assertFalse(viewModel.uiState.value.showCurrencyChangeWarningDialog)
+        assertFalse(viewModel.uiState.value.isCurrencySelectionOpen)
+    }
+
+    @Test
+    fun `test select currency with existing transactions triggers confirmation warning`() = runTest {
+        // إنشاء نموذج عرض بحساب يحتوي على عمليات مسبقة
+        val txRepoWithData = FakeSettingsTxRepo(
+            mutableListOf(
+                TransactionItem(
+                    id = "tx_1",
+                    type = TransactionType.EXPENSE,
+                    amount = 5000L,
+                    categoryId = "cat_food",
+                    categoryName = "طعام",
+                    transactionDate = "2026-11-10"
+                )
+            )
+        )
+        val testViewModel = SettingsViewModel(
+            preferencesManager = fakePreferencesManager,
+            categoryRepository = fakeCategoryRepository,
+            monthlyBudgetRepository = fakeBudgetRepository,
+            transactionRepository = txRepoWithData,
+            backupManager = fakeBackupManager
+        )
+        advanceUntilIdle()
+        assertTrue(testViewModel.uiState.value.hasExistingTransactions)
+
+        // محاولة تغيير العملة إلى الدينار الكويتي KWD
+        testViewModel.selectCurrency("KWD")
+        advanceUntilIdle()
+
+        // يجب ألا تتغير العملة فوراً، بل تظهر نافذة تأكيد التحذير
+        assertEquals("YER", testViewModel.uiState.value.selectedCurrencyCode)
+        assertTrue(testViewModel.uiState.value.showCurrencyChangeWarningDialog)
+        assertEquals("KWD", testViewModel.uiState.value.pendingCurrencyCode)
+
+        // إلغاء التغيير
+        testViewModel.dismissCurrencyChangeWarning()
+        advanceUntilIdle()
+
+        assertEquals("YER", testViewModel.uiState.value.selectedCurrencyCode)
+        assertFalse(testViewModel.uiState.value.showCurrencyChangeWarningDialog)
+        assertNull(testViewModel.uiState.value.pendingCurrencyCode)
+
+        // المحاولة مرة أخرى وتأكيد التغيير
+        testViewModel.selectCurrency("KWD")
+        advanceUntilIdle()
+        assertTrue(testViewModel.uiState.value.showCurrencyChangeWarningDialog)
+
+        testViewModel.confirmCurrencyChange()
+        advanceUntilIdle()
+
+        assertEquals("KWD", testViewModel.uiState.value.selectedCurrencyCode)
+        assertFalse(testViewModel.uiState.value.showCurrencyChangeWarningDialog)
+        assertNull(testViewModel.uiState.value.pendingCurrencyCode)
+        assertFalse(testViewModel.uiState.value.isCurrencySelectionOpen)
+    }
 }
 
 /**
@@ -323,8 +406,13 @@ class SettingsViewModelTest {
  */
 class FakePreferencesManager : UserPreferences {
     private val _themeModeFlow = MutableStateFlow(ThemeMode.SYSTEM)
+    private val _currencyFlow = MutableStateFlow("YER")
+    private val _hasSelectedCurrencyFlow = MutableStateFlow(false)
+
     override val themeMode: Flow<ThemeMode> = _themeModeFlow
     override val isDarkMode: Flow<Boolean> = _themeModeFlow.map { it == ThemeMode.DARK }
+    override val selectedCurrencyCode: Flow<String> = _currencyFlow
+    override val hasSelectedCurrency: Flow<Boolean> = _hasSelectedCurrencyFlow
 
     override suspend fun setThemeMode(mode: ThemeMode) {
         _themeModeFlow.value = mode
@@ -332,6 +420,14 @@ class FakePreferencesManager : UserPreferences {
 
     override suspend fun setDarkMode(isDark: Boolean) {
         setThemeMode(if (isDark) ThemeMode.DARK else ThemeMode.LIGHT)
+    }
+
+    override suspend fun setSelectedCurrencyCode(code: String) {
+        _currencyFlow.value = code
+    }
+
+    override suspend fun setHasSelectedCurrency(hasSelected: Boolean) {
+        _hasSelectedCurrencyFlow.value = hasSelected
     }
 }
 
@@ -422,8 +518,18 @@ class FakeSettingsBudgetRepo : MonthlyBudgetRepository {
     }
 }
 
-class FakeSettingsTxRepo : TransactionRepository {
-    override fun getAllTransactions(): Flow<List<TransactionItem>> = MutableStateFlow(emptyList())
+class FakeSettingsTxRepo(
+    private val transactions: MutableList<TransactionItem> = mutableListOf()
+) : TransactionRepository {
+    private val flow = MutableStateFlow<List<TransactionItem>>(transactions)
+
+    fun setTransactions(list: List<TransactionItem>) {
+        transactions.clear()
+        transactions.addAll(list)
+        flow.value = ArrayList(transactions)
+    }
+
+    override fun getAllTransactions(): Flow<List<TransactionItem>> = flow
     override fun getTransactionsByMonth(yearMonth: String): Flow<List<TransactionItem>> = MutableStateFlow(emptyList())
     override fun getTransactionsByDateRange(startDate: String, endDate: String): Flow<List<TransactionItem>> = MutableStateFlow(emptyList())
     override fun getTransactionsByType(type: TransactionType): Flow<List<TransactionItem>> = MutableStateFlow(emptyList())

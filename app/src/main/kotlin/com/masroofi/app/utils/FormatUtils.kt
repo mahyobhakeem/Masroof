@@ -1,5 +1,7 @@
 package com.masroofi.app.utils
 
+import com.masroofi.app.domain.model.CurrencyCatalog
+import com.masroofi.app.domain.model.CurrencyInfo
 import java.util.Locale
 
 /**
@@ -8,11 +10,30 @@ import java.util.Locale
 object FormatUtils {
 
     /**
-     * تنسيق المبالغ المالية بالريال اليمني (YER) كأرقام صحيحة خالية من الكسور وبالأرقام القياسية الموحدة (0-9)
+     * تنسيق المبالغ المالية وفق كود العملة المختار كأرقام صحيحة خالية من الكسور وبالأرقام القياسية الموحدة (0-9)
      */
-    fun formatCurrency(amount: Long, includeUnit: Boolean = true): String {
-        val formatted = String.format(Locale.US, "%,d", amount)
-        return if (includeUnit) "$formatted ريال" else formatted
+    fun formatCurrency(
+        amount: Long,
+        currencyCode: String = CurrencyCatalog.DEFAULT_CURRENCY_CODE,
+        includeUnit: Boolean = true
+    ): String {
+        val formatted = formatNumber(amount)
+        if (!includeUnit) return formatted
+        val symbol = CurrencyCatalog.getCurrencyByCode(currencyCode).symbolArabic
+        return "$formatted $symbol"
+    }
+
+    /**
+     * تنسيق المبالغ المالية وفق كائن العملة مباشرة
+     */
+    fun formatCurrency(
+        amount: Long,
+        currency: CurrencyInfo,
+        includeUnit: Boolean = true
+    ): String {
+        val formatted = formatNumber(amount)
+        if (!includeUnit) return formatted
+        return "$formatted ${currency.symbolArabic}"
     }
 
     /**
@@ -129,4 +150,15 @@ fun formatNumber(number: Long): String {
  */
 fun formatYearMonth(yearMonth: java.time.YearMonth): String {
     return FormatUtils.formatYearMonth(yearMonth)
+}
+
+/**
+ * دالة مساعدة عامة لتنسيق المبالغ مع رمز العملة المعتمد
+ */
+fun formatCurrency(
+    amount: Long,
+    currencyCode: String = CurrencyCatalog.DEFAULT_CURRENCY_CODE,
+    includeUnit: Boolean = true
+): String {
+    return FormatUtils.formatCurrency(amount, currencyCode, includeUnit)
 }

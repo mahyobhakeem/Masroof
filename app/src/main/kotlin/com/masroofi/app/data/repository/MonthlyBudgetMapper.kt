@@ -10,7 +10,8 @@ fun MonthlyBudgetEntity.toDomain(): MonthlyBudget {
     return MonthlyBudget(
         id = id,
         yearMonth = yearMonth,
-        amount = amount
+        amount = amount,
+        currencyCode = currencyCode
     )
 }
 
@@ -18,6 +19,7 @@ fun MonthlyBudget.toEntity(): MonthlyBudgetEntity {
     return MonthlyBudgetEntity(
         id = id,
         yearMonth = yearMonth,
-        amount = amount
+        amount = amount,
+        currencyCode = currencyCode
     )
 }

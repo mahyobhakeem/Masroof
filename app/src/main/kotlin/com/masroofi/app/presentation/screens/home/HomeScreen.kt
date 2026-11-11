@@ -38,6 +38,7 @@ import com.masroofi.app.domain.model.TimePeriodMode
 import com.masroofi.app.domain.model.TransactionItem
 import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.presentation.components.CategoryIconHelper
+import com.masroofi.app.presentation.components.LocalAppCurrency
 import com.masroofi.app.presentation.components.MasroofDatePickerDialog
 import com.masroofi.app.presentation.components.MasroofDateRangeDialog
 import com.masroofi.app.presentation.components.MasroofiItemCard
@@ -496,6 +497,7 @@ private fun PeriodFinancialSummaryCard(
     uiState: HomeUiState,
     onBackToToday: () -> Unit
 ) {
+    val currencySymbol = LocalAppCurrency.current.symbolArabic
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -527,7 +529,7 @@ private fun PeriodFinancialSummaryCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${formatNumber(uiState.periodTotalExpenses)} ريال",
+                        text = "${formatNumber(uiState.periodTotalExpenses)} $currencySymbol",
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -584,7 +586,7 @@ private fun PeriodFinancialSummaryCard(
                             color = TextSecondary
                         )
                         Text(
-                            text = "+${formatNumber(uiState.periodTotalIncome)} ريال",
+                            text = "+${formatNumber(uiState.periodTotalIncome)} $currencySymbol",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = IncomeGreen
@@ -619,7 +621,7 @@ private fun PeriodFinancialSummaryCard(
                             color = TextSecondary
                         )
                         Text(
-                            text = "${if (isPositive) "+" else "-"}${formatNumber(abs(uiState.periodNetCashflow))} ريال",
+                            text = "${if (isPositive) "+" else "-"}${formatNumber(abs(uiState.periodNetCashflow))} $currencySymbol",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = color
@@ -670,6 +672,7 @@ private fun FinancialSummaryCard(
     summary: FinancialSummary,
     onOpenBudgetDialog: () -> Unit
 ) {
+    val currencySymbol = LocalAppCurrency.current.symbolArabic
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -695,7 +698,7 @@ private fun FinancialSummaryCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${formatNumber(summary.totalMonthlyExpenses)} ريال",
+                        text = "${formatNumber(summary.totalMonthlyExpenses)} $currencySymbol",
                         style = MaterialTheme.typography.headlineLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -731,9 +734,9 @@ private fun FinancialSummaryCard(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = if (summary.isBudgetExceeded) {
-                                    "تجاوز الميزانية: ${formatNumber(summary.budgetExcessAmount)} ريال (${summary.consumptionPercentage}%)"
+                                    "تجاوز الميزانية: ${formatNumber(summary.budgetExcessAmount)} $currencySymbol (${summary.consumptionPercentage}%)"
                                 } else {
-                                    "المتبقي: ${formatNumber(summary.remainingBudget ?: 0L)} ريال (${summary.consumptionPercentage}%)"
+                                    "المتبقي: ${formatNumber(summary.remainingBudget ?: 0L)} $currencySymbol (${summary.consumptionPercentage}%)"
                                 },
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
@@ -756,7 +759,7 @@ private fun FinancialSummaryCard(
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "الميزانية: ${formatNumber(summary.monthlyBudget)} ريال",
+                                text = "الميزانية: ${formatNumber(summary.monthlyBudget)} $currencySymbol",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = TextSecondary
                             )
@@ -840,7 +843,7 @@ private fun FinancialSummaryCard(
                             color = TextSecondary
                         )
                         Text(
-                            text = "${formatNumber(summary.totalMonthlyIncome)} ريال",
+                            text = "${formatNumber(summary.totalMonthlyIncome)} $currencySymbol",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = IncomeGreen
@@ -872,7 +875,7 @@ private fun FinancialSummaryCard(
                             color = TextSecondary
                         )
                         Text(
-                            text = "${formatNumber(summary.totalDailyExpenses)} ريال",
+                            text = "${formatNumber(summary.totalDailyExpenses)} $currencySymbol",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.error
@@ -887,6 +890,7 @@ private fun FinancialSummaryCard(
 // شبكة أبرز التصنيفات
 @Composable
 private fun TopCategoriesGrid(topCategories: List<CategoryExpenseSummary>) {
+    val currencySymbol = LocalAppCurrency.current.symbolArabic
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -939,7 +943,7 @@ private fun TopCategoriesGrid(topCategories: List<CategoryExpenseSummary>) {
 
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = "${formatNumber(category.totalSpent)} ريال",
+                            text = "${formatNumber(category.totalSpent)} $currencySymbol",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -963,6 +967,7 @@ private fun HomeTransactionRowItem(
     transaction: TransactionItem,
     onClick: () -> Unit
 ) {
+    val currencySymbol = LocalAppCurrency.current.symbolArabic
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surface,
@@ -1023,7 +1028,7 @@ private fun HomeTransactionRowItem(
             val amountColor = if (isExpense) MaterialTheme.colorScheme.onSurface else IncomeGreen
 
             Text(
-                text = "$sign${formatNumber(transaction.amount)} ريال",
+                text = "$sign${formatNumber(transaction.amount)} $currencySymbol",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = amountColor

@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.masroofi.app.domain.model.TransactionItem
 import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.presentation.components.CategoryIconHelper
+import com.masroofi.app.presentation.components.LocalAppCurrency
 import com.masroofi.app.presentation.components.MasroofDatePickerDialog
 import com.masroofi.app.presentation.components.MasroofDateRangeDialog
 import com.masroofi.app.presentation.components.MasroofiTextField
@@ -43,6 +44,7 @@ fun TransactionsHistoryScreen(
     onEditTransaction: (TransactionItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val currencySymbol = LocalAppCurrency.current.symbolArabic
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -103,6 +105,7 @@ fun TransactionsHistoryContent(
     modifier: Modifier = Modifier
 ) {
     val filterTabs = listOf("الكل", "المصروفات", "الإيرادات")
+    val currencySymbol = LocalAppCurrency.current.symbolArabic
     var selectedTransactionForDetails by remember { mutableStateOf<TransactionItem?>(null) }
     var transactionToDelete by remember { mutableStateOf<TransactionItem?>(null) }
 
@@ -514,7 +517,7 @@ fun TransactionsHistoryContent(
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     if (dailyExpenseSum > 0) {
                                         Text(
-                                            text = "- ${formatNumber(dailyExpenseSum)} ريال",
+                                            text = "- ${formatNumber(dailyExpenseSum)} $currencySymbol",
                                             style = MaterialTheme.typography.bodySmall,
                                             fontWeight = FontWeight.Bold,
                                             color = ExpenseRed,
@@ -523,7 +526,7 @@ fun TransactionsHistoryContent(
                                     }
                                     if (dailyIncomeSum > 0) {
                                         Text(
-                                            text = "+ ${formatNumber(dailyIncomeSum)} ريال",
+                                            text = "+ ${formatNumber(dailyIncomeSum)} $currencySymbol",
                                             style = MaterialTheme.typography.bodySmall,
                                             fontWeight = FontWeight.Bold,
                                             color = IncomeGreen,
@@ -627,6 +630,7 @@ private fun FilteredResultsSummaryCard(
     netTotal: Long,
     count: Int
 ) {
+    val currencySymbol = LocalAppCurrency.current.symbolArabic
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -649,7 +653,7 @@ private fun FilteredResultsSummaryCard(
                     fontSize = 11.sp
                 )
                 Text(
-                    text = "- ${formatNumber(totalExpenses)} ريال",
+                    text = "- ${formatNumber(totalExpenses)} $currencySymbol",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = ExpenseRed
@@ -665,7 +669,7 @@ private fun FilteredResultsSummaryCard(
                     fontSize = 11.sp
                 )
                 Text(
-                    text = "+ ${formatNumber(totalIncome)} ريال",
+                    text = "+ ${formatNumber(totalIncome)} $currencySymbol",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = IncomeGreen
@@ -683,7 +687,7 @@ private fun FilteredResultsSummaryCard(
                 val netColor = if (netTotal >= 0) IncomeGreen else ExpenseRed
                 val prefix = if (netTotal >= 0) "+ " else "- "
                 Text(
-                    text = "$prefix${formatNumber(kotlin.math.abs(netTotal))} ريال",
+                    text = "$prefix${formatNumber(kotlin.math.abs(netTotal))} $currencySymbol",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = netColor
@@ -823,9 +827,10 @@ fun RealTransactionRowItem(
                 }
             }
 
-            // المبلغ المالي بالريال اليمني
+            val currencySymbol = LocalAppCurrency.current.symbolArabic
+            // المبلغ المالي بالعملة المختارة
             Text(
-                text = "$amountPrefix${formatNumber(transaction.amount)} ريال",
+                text = "$amountPrefix${formatNumber(transaction.amount)} $currencySymbol",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 color = amountColor
