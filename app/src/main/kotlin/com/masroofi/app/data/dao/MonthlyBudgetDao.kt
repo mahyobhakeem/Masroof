@@ -33,4 +33,13 @@ interface MonthlyBudgetDao {
 
     @Query("DELETE FROM monthly_budgets WHERE id = :id")
     suspend fun deleteBudgetById(id: String): Int
+
+    @Query("SELECT * FROM monthly_budgets ORDER BY yearMonth ASC")
+    suspend fun getAllBudgetEntities(): List<MonthlyBudgetEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBudgetEntities(budgets: List<MonthlyBudgetEntity>)
+
+    @Query("DELETE FROM monthly_budgets")
+    suspend fun deleteAllBudgets(): Int
 }

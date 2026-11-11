@@ -1,5 +1,8 @@
 package com.masroofi.app.presentation
 
+import com.masroofi.app.data.backup.BackupManager
+import com.masroofi.app.data.backup.BackupPayload
+import com.masroofi.app.data.backup.BackupSummary
 import com.masroofi.app.data.preferences.ThemeMode
 import com.masroofi.app.data.preferences.UserPreferences
 import com.masroofi.app.domain.model.Category
@@ -24,6 +27,8 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.time.YearMonth
 
 /**
@@ -37,6 +42,7 @@ class SettingsViewModelTest {
     private lateinit var fakeCategoryRepository: FakeSettingsCategoryRepo
     private lateinit var fakeBudgetRepository: FakeSettingsBudgetRepo
     private lateinit var fakeTransactionRepository: FakeSettingsTxRepo
+    private lateinit var fakeBackupManager: FakeTestBackupManager
     private lateinit var viewModel: SettingsViewModel
 
     private val foodCategory = Category("cat_food", "طعام ومشروبات", TransactionType.EXPENSE, "fastfood", isDefault = true, isActive = true)
@@ -50,12 +56,14 @@ class SettingsViewModelTest {
         fakeCategoryRepository = FakeSettingsCategoryRepo(mutableListOf(foodCategory, salaryCategory))
         fakeBudgetRepository = FakeSettingsBudgetRepo()
         fakeTransactionRepository = FakeSettingsTxRepo()
+        fakeBackupManager = FakeTestBackupManager()
 
         viewModel = SettingsViewModel(
             preferencesManager = fakePreferencesManager,
             categoryRepository = fakeCategoryRepository,
             monthlyBudgetRepository = fakeBudgetRepository,
-            transactionRepository = fakeTransactionRepository
+            transactionRepository = fakeTransactionRepository,
+            backupManager = fakeBackupManager
         )
     }
 
@@ -204,6 +212,110 @@ class SettingsViewModelTest {
         assertEquals(150000L, viewModel.uiState.value.currentMonthBudget)
         assertEquals("يجب ألا يتكرر الشهر في السجل", 2, viewModel.uiState.value.allBudgets.size)
     }
+
+    @Test
+    fun `test exportBackup writes json to stream and sets successMessage`() = runTest {
+        fakeBackupManager.backupJsonToReturn = """{"appName":"Masroofi"}"""
+        val outStream = ByteArrayOutputStream()
+
+        viewModel.exportBackup(outStream)
+        advanceUntilIdle()
+
+        val written = outStream.toString(Charsets.UTF_8.name())
+        assertEquals("""{"appName":"Masroofi"}""", written)
+        assertEquals("تم إنشاء النسخة الاحتياطية بنجاح", viewModel.uiState.value.successMessage)
+    }
+
+    @Test
+    fun `test prepareRestore with valid json sets pendingRestoreSummary and opens confirmation`() = runTest {
+        val summary = BackupSummary(
+            createdAt = "2026-11-11",
+            transactionCount = 10,
+            categoryCount = 5,
+            budgetCount = 2,
+            payload = BackupPayload(createdAt = "2026-11-11")
+        )
+        fakeBackupManager.validateResult = Result.success(summary)
+        val inStream = ByteArrayInputStream("valid_json".toByteArray(Charsets.UTF_8))
+
+        viewModel.prepareRestore(inStream)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.isRestoreConfirmationOpen)
+        assertEquals(summary, viewModel.uiState.value.pendingRestoreSummary)
+        assertNull(viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `test prepareRestore with invalid json sets errorMessage and does not open confirmation`() = runTest {
+        fakeBackupManager.validateResult = Result.failure(IllegalArgumentException("تنسيق غير صالح"))
+        val inStream = ByteArrayInputStream("bad_json".toByteArray(Charsets.UTF_8))
+
+        viewModel.prepareRestore(inStream)
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isRestoreConfirmationOpen)
+        assertNull(viewModel.uiState.value.pendingRestoreSummary)
+        assertEquals("تنسيق غير صالح", viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `test confirmRestore calls backupManager and shows success message`() = runTest {
+        val summary = BackupSummary(
+            createdAt = "2026-11-11",
+            transactionCount = 10,
+            categoryCount = 5,
+            budgetCount = 2,
+            payload = BackupPayload(createdAt = "2026-11-11")
+        )
+        fakeBackupManager.validateResult = Result.success(summary)
+        fakeBackupManager.restoreResult = Result.success(Unit)
+
+        val inStream = ByteArrayInputStream("valid_json".toByteArray(Charsets.UTF_8))
+        viewModel.prepareRestore(inStream)
+        advanceUntilIdle()
+
+        viewModel.confirmRestore()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.isRestoreConfirmationOpen)
+        assertNull(viewModel.uiState.value.pendingRestoreSummary)
+        assertEquals(summary.payload, fakeBackupManager.restoredPayload)
+        assertTrue(viewModel.uiState.value.successMessage?.contains("تمت استعادة البيانات بنجاح") == true)
+    }
+
+    @Test
+    fun `test cancelRestore closes confirmation and clears pending summary`() = runTest {
+        val summary = BackupSummary(
+            createdAt = "2026-11-11",
+            transactionCount = 3,
+            categoryCount = 2,
+            budgetCount = 1,
+            payload = BackupPayload(createdAt = "2026-11-11")
+        )
+        fakeBackupManager.validateResult = Result.success(summary)
+
+        viewModel.prepareRestore(ByteArrayInputStream("valid".toByteArray(Charsets.UTF_8)))
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isRestoreConfirmationOpen)
+
+        viewModel.cancelRestore()
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isRestoreConfirmationOpen)
+        assertNull(viewModel.uiState.value.pendingRestoreSummary)
+    }
+
+    @Test
+    fun `test exportCsv exports transactions and sets successMessage`() = runTest {
+        val outStream = ByteArrayOutputStream()
+        viewModel.exportCsv(outStream)
+        advanceUntilIdle()
+
+        val csv = outStream.toString(Charsets.UTF_8.name())
+        assertTrue(csv.startsWith("\uFEFF"))
+        assertTrue(csv.contains("التاريخ,النوع,التصنيف,المبلغ (ريال يمني),الملاحظات"))
+        assertTrue(viewModel.uiState.value.successMessage?.contains("تم تصدير") == true)
+    }
 }
 
 /**
@@ -320,4 +432,20 @@ class FakeSettingsTxRepo : TransactionRepository {
     override suspend fun addTransaction(transaction: TransactionItem): Result<Unit> = Result.success(Unit)
     override suspend fun updateTransaction(transaction: TransactionItem): Result<Unit> = Result.success(Unit)
     override suspend fun deleteTransaction(id: String): Result<Unit> = Result.success(Unit)
+}
+
+class FakeTestBackupManager : BackupManager {
+    var backupJsonToReturn: String = "{}"
+    var validateResult: Result<BackupSummary> = Result.failure(Exception("Error"))
+    var restoreResult: Result<Unit> = Result.success(Unit)
+    var restoredPayload: BackupPayload? = null
+
+    override suspend fun createBackupJson(): String = backupJsonToReturn
+
+    override fun validateBackupJson(jsonString: String): Result<BackupSummary> = validateResult
+
+    override suspend fun restoreBackup(payload: BackupPayload): Result<Unit> {
+        restoredPayload = payload
+        return restoreResult
+    }
 }

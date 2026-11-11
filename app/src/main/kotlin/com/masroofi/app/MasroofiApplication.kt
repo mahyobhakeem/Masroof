@@ -2,6 +2,8 @@ package com.masroofi.app
 
 import android.app.Application
 import android.content.Context
+import com.masroofi.app.data.backup.BackupManager
+import com.masroofi.app.data.backup.BackupRestoreManager
 import com.masroofi.app.data.database.MasroofiDatabase
 import com.masroofi.app.data.preferences.PreferencesManager
 import com.masroofi.app.data.repository.CategoryRepositoryImpl
@@ -27,6 +29,7 @@ interface AppContainer {
     val getMonthlyFinancialSummaryUseCase: GetMonthlyFinancialSummaryUseCase
     val setMonthlyBudgetUseCase: SetMonthlyBudgetUseCase
     val getMonthlyReportUseCase: GetMonthlyReportUseCase
+    val backupManager: BackupManager
 }
 
 /**
@@ -36,6 +39,10 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val database: MasroofiDatabase by lazy {
         MasroofiDatabase.getDatabase(context)
+    }
+
+    override val backupManager: BackupManager by lazy {
+        BackupRestoreManager(database)
     }
 
     override val categoryRepository: CategoryRepository by lazy {

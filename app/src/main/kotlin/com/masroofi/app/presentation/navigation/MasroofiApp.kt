@@ -100,7 +100,8 @@ fun MasroofiApp(
             preferencesManager = container.preferencesManager,
             categoryRepository = container.categoryRepository,
             monthlyBudgetRepository = container.monthlyBudgetRepository,
-            transactionRepository = container.transactionRepository
+            transactionRepository = container.transactionRepository,
+            backupManager = container.backupManager
         )
     )
 

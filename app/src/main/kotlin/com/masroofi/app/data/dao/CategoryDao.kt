@@ -46,4 +46,13 @@ interface CategoryDao {
 
     @Query("DELETE FROM categories WHERE id = :id")
     suspend fun deleteCategoryById(id: String): Int
+
+    @Query("SELECT * FROM categories ORDER BY CASE WHEN id LIKE '%_other' THEN 1 ELSE 0 END ASC, isDefault DESC, name ASC")
+    suspend fun getAllCategoryEntities(): List<CategoryEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrReplaceCategoryEntities(categories: List<CategoryEntity>)
+
+    @Query("DELETE FROM categories")
+    suspend fun deleteAllCategories(): Int
 }

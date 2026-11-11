@@ -93,4 +93,7 @@ dependencies {
 
   // DataStore Preferences
   implementation(libs.androidx.datastore.preferences)
+
+  // Kotlinx Serialization JSON
+  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 }

@@ -53,4 +53,13 @@ interface TransactionDao {
     @Transaction
     @Query("SELECT * FROM transactions WHERE categoryId = :categoryId ORDER BY transactionDate DESC, createdAt DESC")
     fun getTransactionsWithCategoryByCategoryFlow(categoryId: String): Flow<List<TransactionWithCategory>>
+
+    @Query("SELECT * FROM transactions ORDER BY transactionDate ASC, createdAt ASC")
+    suspend fun getAllTransactionEntities(): List<TransactionEntity>
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertTransactionEntities(transactions: List<TransactionEntity>)
+
+    @Query("DELETE FROM transactions")
+    suspend fun deleteAllTransactions(): Int
 }

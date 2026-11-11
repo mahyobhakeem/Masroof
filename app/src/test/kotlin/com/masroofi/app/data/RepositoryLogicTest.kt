@@ -209,6 +209,20 @@ private class FakeCategoryDao : CategoryDao {
         flow.value = categories.toList()
         return if (removed) 1 else 0
     }
+
+    override suspend fun getAllCategoryEntities(): List<CategoryEntity> = categories.toList()
+
+    override suspend fun insertOrReplaceCategoryEntities(categories: List<CategoryEntity>) {
+        this.categories.addAll(categories)
+        flow.value = this.categories.toList()
+    }
+
+    override suspend fun deleteAllCategories(): Int {
+        val count = categories.size
+        categories.clear()
+        flow.value = emptyList()
+        return count
+    }
 }
 
 private class FakeTransactionDao : TransactionDao {
@@ -270,6 +284,20 @@ private class FakeTransactionDao : TransactionDao {
 
     override fun getTransactionsWithCategoryByCategoryFlow(categoryId: String): Flow<List<TransactionWithCategory>> =
         flow.map { list -> list.filter { it.categoryId == categoryId }.map { TransactionWithCategory(it, null) } }
+
+    override suspend fun getAllTransactionEntities(): List<TransactionEntity> = transactions.toList()
+
+    override suspend fun insertTransactionEntities(transactions: List<TransactionEntity>) {
+        this.transactions.addAll(transactions)
+        flow.value = this.transactions.toList()
+    }
+
+    override suspend fun deleteAllTransactions(): Int {
+        val count = transactions.size
+        transactions.clear()
+        flow.value = emptyList()
+        return count
+    }
 }
 
 private class FakeMonthlyBudgetDao : MonthlyBudgetDao {
@@ -320,5 +348,19 @@ private class FakeMonthlyBudgetDao : MonthlyBudgetDao {
         val removed = budgets.removeAll { it.id == id }
         flow.value = budgets.toList()
         return if (removed) 1 else 0
+    }
+
+    override suspend fun getAllBudgetEntities(): List<MonthlyBudgetEntity> = budgets.toList()
+
+    override suspend fun insertBudgetEntities(budgets: List<MonthlyBudgetEntity>) {
+        this.budgets.addAll(budgets)
+        flow.value = this.budgets.toList()
+    }
+
+    override suspend fun deleteAllBudgets(): Int {
+        val count = budgets.size
+        budgets.clear()
+        flow.value = emptyList()
+        return count
     }
 }

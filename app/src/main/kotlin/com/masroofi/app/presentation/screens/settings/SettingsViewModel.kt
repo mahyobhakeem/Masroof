@@ -3,6 +3,9 @@ package com.masroofi.app.presentation.screens.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.masroofi.app.data.backup.BackupManager
+import com.masroofi.app.data.backup.BackupSummary
+import com.masroofi.app.data.export.CsvExporter
 import com.masroofi.app.data.preferences.ThemeMode
 import com.masroofi.app.data.preferences.UserPreferences
 import com.masroofi.app.domain.model.Category
@@ -13,6 +16,8 @@ import com.masroofi.app.domain.repository.MonthlyBudgetRepository
 import com.masroofi.app.domain.repository.TransactionRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.io.InputStream
+import java.io.OutputStream
 import java.time.YearMonth
 import java.util.UUID
 
@@ -33,6 +38,8 @@ data class SettingsUiState(
     val addEditCategoryType: TransactionType = TransactionType.EXPENSE,
     val budgetToEdit: MonthlyBudget? = null,
     val showEditBudgetDialog: Boolean = false,
+    val isRestoreConfirmationOpen: Boolean = false,
+    val pendingRestoreSummary: BackupSummary? = null,
     val errorMessage: String? = null,
     val successMessage: String? = null
 ) {
@@ -50,7 +57,8 @@ class SettingsViewModel(
     private val preferencesManager: UserPreferences,
     private val categoryRepository: CategoryRepository,
     private val monthlyBudgetRepository: MonthlyBudgetRepository,
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: TransactionRepository,
+    private val backupManager: BackupManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -325,6 +333,94 @@ class SettingsViewModel(
         _uiState.update { it.copy(isAboutDialogOpen = false) }
     }
 
+    // ==========================================
+    // 5. النسخ الاحتياطي والاستعادة وتصدير CSV
+    // ==========================================
+
+    fun exportBackup(outputStream: OutputStream) {
+        viewModelScope.launch {
+            try {
+                val jsonString = backupManager.createBackupJson()
+                outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(jsonString) }
+                _uiState.update { it.copy(successMessage = "تم إنشاء النسخة الاحتياطية بنجاح") }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(errorMessage = "فشل إنشاء النسخة الاحتياطية: ${e.message}") }
+            }
+        }
+    }
+
+    fun prepareRestore(inputStream: InputStream) {
+        viewModelScope.launch {
+            try {
+                val jsonString = inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                backupManager.validateBackupJson(jsonString)
+                    .onSuccess { summary ->
+                        _uiState.update {
+                            it.copy(
+                                pendingRestoreSummary = summary,
+                                isRestoreConfirmationOpen = true
+                            )
+                        }
+                    }
+                    .onFailure { error ->
+                        _uiState.update {
+                            it.copy(errorMessage = error.message ?: "ملف النسخة الاحتياطية غير صالح")
+                        }
+                    }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(errorMessage = "تعذر قراءة الملف المختار: ${e.message}") }
+            }
+        }
+    }
+
+    fun confirmRestore() {
+        val summary = _uiState.value.pendingRestoreSummary ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRestoreConfirmationOpen = false) }
+            backupManager.restoreBackup(summary.payload)
+                .onSuccess {
+                    _uiState.update {
+                        it.copy(
+                            pendingRestoreSummary = null,
+                            successMessage = "تمت استعادة البيانات بنجاح (${summary.transactionCount} عملية، ${summary.categoryCount} تصنيفاً)"
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            pendingRestoreSummary = null,
+                            errorMessage = "فشلت استعادة البيانات: ${error.message}"
+                        )
+                    }
+                }
+        }
+    }
+
+    fun cancelRestore() {
+        _uiState.update {
+            it.copy(
+                isRestoreConfirmationOpen = false,
+                pendingRestoreSummary = null
+            )
+        }
+    }
+
+    fun exportCsv(outputStream: OutputStream) {
+        viewModelScope.launch {
+            try {
+                val transactions = transactionRepository.getAllTransactions().first()
+                val csvContent = CsvExporter.exportTransactions(transactions)
+                outputStream.bufferedWriter(Charsets.UTF_8).use { it.write(csvContent) }
+                _uiState.update {
+                    it.copy(successMessage = "تم تصدير ${transactions.size} عملية إلى ملف CSV بنجاح")
+                }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(errorMessage = "فشل تصدير ملف CSV: ${e.message}") }
+            }
+        }
+    }
+
     fun clearMessages() {
         _uiState.update { it.copy(errorMessage = null, successMessage = null) }
     }
@@ -337,7 +433,8 @@ class SettingsViewModelFactory(
     private val preferencesManager: UserPreferences,
     private val categoryRepository: CategoryRepository,
     private val monthlyBudgetRepository: MonthlyBudgetRepository,
-    private val transactionRepository: TransactionRepository
+    private val transactionRepository: TransactionRepository,
+    private val backupManager: BackupManager
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -346,7 +443,8 @@ class SettingsViewModelFactory(
                 preferencesManager = preferencesManager,
                 categoryRepository = categoryRepository,
                 monthlyBudgetRepository = monthlyBudgetRepository,
-                transactionRepository = transactionRepository
+                transactionRepository = transactionRepository,
+                backupManager = backupManager
             ) as T
         }
         throw IllegalArgumentException("فئة نموذج العرض غير معروفة: ${modelClass.name}")

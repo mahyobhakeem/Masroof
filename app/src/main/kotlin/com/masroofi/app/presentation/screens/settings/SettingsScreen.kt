@@ -1,5 +1,7 @@
 package com.masroofi.app.presentation.screens.settings
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -13,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -23,6 +26,7 @@ import com.masroofi.app.presentation.components.MasroofiExpandableCard
 import com.masroofi.app.presentation.components.MasroofiItemCard
 import com.masroofi.app.presentation.theme.*
 import com.masroofi.app.utils.formatNumber
+import java.time.LocalDate
 
 /**
  * شاشة الإعدادات المربوطة بـ SettingsViewModel و Room و DataStore
@@ -33,6 +37,50 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    // مشغلات إطار وصول التخزين القياسي (Storage Access Framework)
+    val backupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri?.let {
+            try {
+                context.contentResolver.openOutputStream(it)?.use { stream ->
+                    viewModel.exportBackup(stream)
+                }
+            } catch (e: Exception) {
+                // خطأ فتح الملف
+            }
+        }
+    }
+
+    val restoreLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            try {
+                context.contentResolver.openInputStream(it)?.use { stream ->
+                    viewModel.prepareRestore(stream)
+                }
+            } catch (e: Exception) {
+                // خطأ قراءة الملف
+            }
+        }
+    }
+
+    val csvLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri ->
+        uri?.let {
+            try {
+                context.contentResolver.openOutputStream(it)?.use { stream ->
+                    viewModel.exportCsv(stream)
+                }
+            } catch (e: Exception) {
+                // خطأ كتابة الملف
+            }
+        }
+    }
 
     SettingsContent(
         uiState = uiState,
@@ -53,6 +101,19 @@ fun SettingsScreen(
         onOpenAboutDialog = { viewModel.openAboutDialog() },
         onCloseAboutDialog = { viewModel.closeAboutDialog() },
         onClearMessages = { viewModel.clearMessages() },
+        onTriggerBackup = {
+            val fileName = "masroofi_backup_${LocalDate.now()}.json"
+            backupLauncher.launch(fileName)
+        },
+        onTriggerRestore = {
+            restoreLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
+        },
+        onTriggerCsvExport = {
+            val fileName = "masroofi_transactions_${LocalDate.now()}.csv"
+            csvLauncher.launch(fileName)
+        },
+        onConfirmRestore = { viewModel.confirmRestore() },
+        onCancelRestore = { viewModel.cancelRestore() },
         modifier = modifier
     )
 }
@@ -80,6 +141,11 @@ fun SettingsContent(
     onOpenAboutDialog: () -> Unit,
     onCloseAboutDialog: () -> Unit,
     onClearMessages: () -> Unit,
+    onTriggerBackup: () -> Unit = {},
+    onTriggerRestore: () -> Unit = {},
+    onTriggerCsvExport: () -> Unit = {},
+    onConfirmRestore: () -> Unit = {},
+    onCancelRestore: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -235,6 +301,154 @@ fun SettingsContent(
                 }
             }
 
+            // 4. بطاقة النسخ الاحتياطي وتصدير البيانات (JSON & CSV)
+            item {
+                MasroofiExpandableCard(
+                    title = "النسخ الاحتياطي وتصدير البيانات",
+                    icon = Icons.Default.CloudSync,
+                    iconColor = CategoryTransport
+                ) {
+                    // أ) إنشاء نسخة احتياطية JSON
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onTriggerBackup() }
+                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudUpload,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "إنشاء نسخة احتياطية (JSON)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "حفظ نسخة كاملة من العمليات والتصنيفات والميزانيات محلياً",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronLeft,
+                            contentDescription = null,
+                            tint = TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.8.dp)
+
+                    // ب) استعادة نسخة احتياطية JSON
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onTriggerRestore() }
+                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(ExpenseRed.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SettingsBackupRestore,
+                                contentDescription = null,
+                                tint = ExpenseRed,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "استعادة نسخة احتياطية",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "استرجاع البيانات مع فحص الأمان وتأكيد الاستبدال",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronLeft,
+                            contentDescription = null,
+                            tint = TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.8.dp)
+
+                    // ج) تصدير سجل العمليات CSV
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onTriggerCsvExport() }
+                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(IncomeGreen.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.TableChart,
+                                contentDescription = null,
+                                tint = IncomeGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "تصدير العمليات (CSV)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "تصدير ملف جدول Excel متوافق تماماً مع العربية",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronLeft,
+                            contentDescription = null,
+                            tint = TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
             // 5. بطاقة حول تطبيق مصروفي
             item {
                 MasroofiItemCard(
@@ -310,6 +524,15 @@ fun SettingsContent(
     // نافذة حول التطبيق
     if (uiState.isAboutDialogOpen) {
         AboutAppDialog(onDismiss = onCloseAboutDialog)
+    }
+
+    // نافذة تأكيد استعادة النسخة الاحتياطية
+    if (uiState.isRestoreConfirmationOpen && uiState.pendingRestoreSummary != null) {
+        RestoreConfirmationDialog(
+            summary = uiState.pendingRestoreSummary,
+            onConfirm = onConfirmRestore,
+            onDismiss = onCancelRestore
+        )
     }
 }
 
