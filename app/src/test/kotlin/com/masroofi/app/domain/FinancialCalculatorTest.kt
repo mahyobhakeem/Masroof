@@ -303,4 +303,94 @@ class FinancialCalculatorTest {
         // نسبة التغير من 40,000 إلى 60,000 هي: ((60k - 40k) / 40k) * 100 = +50%
         assertEquals(50, changePercentage)
     }
+
+    @Test
+    fun `test multi-million amounts without overflow`() {
+        val today = LocalDate.of(2026, 11, 10)
+        val transactions = listOf(
+            TransactionItem(
+                id = "tx_large_1",
+                type = TransactionType.EXPENSE,
+                amount = 75_000_000L,
+                categoryId = sampleFoodCategory.id,
+                transactionDate = "2026-11-10"
+            ),
+            TransactionItem(
+                id = "tx_large_2",
+                type = TransactionType.EXPENSE,
+                amount = 50_000_000L,
+                categoryId = sampleBillsCategory.id,
+                transactionDate = "2026-11-05"
+            ),
+            TransactionItem(
+                id = "tx_large_3",
+                type = TransactionType.INCOME,
+                amount = 200_000_000L,
+                categoryId = sampleSalaryCategory.id,
+                transactionDate = "2026-11-01"
+            )
+        )
+
+        val summary = FinancialCalculator.buildFinancialSummary(
+            yearMonth = YearMonth.of(2026, 11),
+            transactions = transactions,
+            budgetAmount = 250_000_000L,
+            targetDate = today
+        )
+
+        assertEquals("إجمالي المصروفات الشهرية: 125,000,000", 125_000_000L, summary.totalMonthlyExpenses)
+        assertEquals("إجمالي الإيرادات الشهرية: 200,000,000", 200_000_000L, summary.totalMonthlyIncome)
+        assertEquals("مصروفات اليوم: 75,000,000", 75_000_000L, summary.totalDailyExpenses)
+        assertEquals("الميزانية: 250,000,000", 250_000_000L, summary.monthlyBudget)
+        assertEquals("المتبقي من الميزانية: 125,000,000", 125_000_000L, summary.remainingBudget)
+        assertFalse("يجب ألا تكون الميزانية متجاوزة", summary.isBudgetExceeded)
+        assertEquals(0L, summary.budgetExcessAmount)
+        assertEquals("نسبة الاستهلاك 50%", 50, summary.consumptionPercentage)
+        assertEquals("صافي التدفق: 75,000,000", 75_000_000L, summary.netCashflow)
+    }
+
+    @Test
+    fun `test zero budget and zero expenses - complete safety`() {
+        val summary = FinancialCalculator.buildFinancialSummary(
+            yearMonth = YearMonth.of(2026, 11),
+            transactions = emptyList(),
+            budgetAmount = null,
+            targetDate = LocalDate.of(2026, 11, 10)
+        )
+
+        assertEquals(0L, summary.totalMonthlyExpenses)
+        assertEquals(0L, summary.totalMonthlyIncome)
+        assertEquals(0L, summary.totalDailyExpenses)
+        assertNull(summary.monthlyBudget)
+        assertNull(summary.remainingBudget)
+        assertFalse(summary.isBudgetExceeded)
+        assertEquals(0L, summary.budgetExcessAmount)
+        assertEquals(0, summary.consumptionPercentage)
+        assertEquals(0L, summary.netCashflow)
+    }
+
+    @Test
+    fun `test large amounts budget exceeded`() {
+        val transactions = listOf(
+            TransactionItem(
+                id = "tx_over",
+                type = TransactionType.EXPENSE,
+                amount = 70_000_000L,
+                categoryId = sampleFoodCategory.id,
+                transactionDate = "2026-11-10"
+            )
+        )
+
+        val summary = FinancialCalculator.buildFinancialSummary(
+            yearMonth = YearMonth.of(2026, 11),
+            transactions = transactions,
+            budgetAmount = 50_000_000L,
+            targetDate = LocalDate.of(2026, 11, 10)
+        )
+
+        assertTrue("الميزانية يجب أن تكون متجاوزة", summary.isBudgetExceeded)
+        assertEquals("المتبقي صفر عند التجاوز", 0L, summary.remainingBudget)
+        assertEquals("مبلغ التجاوز 20,000,000", 20_000_000L, summary.budgetExcessAmount)
+        assertEquals("نسبة الاستهلاك 140%", 140, summary.consumptionPercentage)
+    }
 }

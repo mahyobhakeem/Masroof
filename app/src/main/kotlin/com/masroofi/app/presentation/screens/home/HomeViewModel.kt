@@ -199,7 +199,8 @@ class HomeViewModel(
         _uiState.update {
             it.copy(
                 isDeleteDialogOpen = true,
-                transactionToDelete = transaction
+                transactionToDelete = transaction,
+                selectedTransactionForDetails = null
             )
         }
     }

@@ -158,4 +158,30 @@ class DomainValidationTest {
         val date = item.toLocalDate()
         assertEquals(LocalDate.of(2026, 11, 10), date)
     }
+
+    // 11. قبول المبالغ المليونية والمليارية الكبيرة دون طفح رقمي (Long safety)
+    @Test
+    fun transactionEntity_acceptsVeryLargeAmountsWithoutOverflow() {
+        val largeAmount = 500_000_000_000L // 500 مليار ريال
+        val entity = TransactionEntity(
+            id = "tx_billion",
+            type = TransactionType.INCOME,
+            amount = largeAmount,
+            categoryId = "cat_inc_salary",
+            transactionDate = "2026-11-10"
+        )
+        assertEquals(largeAmount, entity.amount)
+    }
+
+    // 12. قبول ميزانيات بمبالغ مليارية ضخمة دون طفح رقمي
+    @Test
+    fun monthlyBudgetEntity_acceptsVeryLargeAmountsWithoutOverflow() {
+        val largeBudget = 100_000_000_000L // 100 مليار ريال
+        val entity = MonthlyBudgetEntity(
+            id = "b_large",
+            yearMonth = "2026-11",
+            amount = largeBudget
+        )
+        assertEquals(largeBudget, entity.amount)
+    }
 }
