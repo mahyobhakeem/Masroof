@@ -215,14 +215,14 @@ class SettingsViewModelTest {
 
     @Test
     fun `test exportBackup writes json to stream and sets successMessage`() = runTest {
-        fakeBackupManager.backupJsonToReturn = """{"appName":"Masroofi"}"""
+        fakeBackupManager.backupJsonToReturn = """{"appName":"Masroof"}"""
         val outStream = ByteArrayOutputStream()
 
         viewModel.exportBackup(outStream)
         advanceUntilIdle()
 
         val written = outStream.toString(Charsets.UTF_8.name())
-        assertEquals("""{"appName":"Masroofi"}""", written)
+        assertEquals("""{"appName":"Masroof"}""", written)
         assertEquals("تم إنشاء النسخة الاحتياطية بنجاح", viewModel.uiState.value.successMessage)
     }
 

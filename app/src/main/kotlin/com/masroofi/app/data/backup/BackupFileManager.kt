@@ -51,7 +51,7 @@ object BackupFileManager {
     fun saveBackupDirectly(context: Context, jsonContent: String, customFileName: String? = null): File {
         val dir = getBackupsDirectory(context)
         val timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
-        val fileName = customFileName ?: "masroofi_backup_$timeStamp.json"
+        val fileName = customFileName ?: "masroof_backup_$timeStamp.json"
         val targetFile = File(dir, fileName)
 
         targetFile.bufferedWriter(Charsets.UTF_8).use { writer ->
@@ -66,7 +66,7 @@ object BackupFileManager {
     fun saveCsvDirectly(context: Context, csvContent: String, customFileName: String? = null): File {
         val dir = getExportsDirectory(context)
         val timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
-        val fileName = customFileName ?: "masroofi_transactions_$timeStamp.csv"
+        val fileName = customFileName ?: "masroof_transactions_$timeStamp.csv"
         val targetFile = File(dir, fileName)
 
         targetFile.bufferedWriter(Charsets.UTF_8).use { writer ->

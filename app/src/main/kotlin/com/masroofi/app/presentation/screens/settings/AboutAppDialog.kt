@@ -66,13 +66,13 @@ fun AboutAppDialog(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
-                    text = "مصروفي | Masroofi",
+                    text = "مصروف | Masroof",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "الإصدار 1.0.0",
+                    text = "الإصدار 1.1.0",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold

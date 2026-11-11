@@ -268,7 +268,7 @@ private fun HomeHeaderSection(
     ) {
         Column {
             Text(
-                text = "مصروفي | Masroofi",
+                text = "مصروف | Masroof",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary

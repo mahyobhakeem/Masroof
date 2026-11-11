@@ -56,7 +56,7 @@ class BackupRestoreTest {
         val json = backupRestoreManager.createBackupJson()
 
         assertTrue(json.contains("\"backupFormatVersion\": 1"))
-        assertTrue(json.contains("\"appName\": \"Masroofi\""))
+        assertTrue(json.contains("\"appName\": \"Masroof\""))
         assertTrue(json.contains("\"currency\": \"YER\""))
         assertTrue(json.contains("طعام ومشروبات"))
         assertTrue(json.contains("25000"))
@@ -86,7 +86,7 @@ class BackupRestoreTest {
         assertEquals(1, summary.budgetCount)
 
         val payload = summary.payload
-        assertEquals("Masroofi", payload.appName)
+        assertEquals("Masroof", payload.appName)
         assertEquals("YER", payload.currency)
         assertEquals("tx_rt", payload.transactions[0].id)
         assertEquals(75000L, payload.transactions[0].amount)
@@ -139,7 +139,7 @@ class BackupRestoreTest {
 
         val result = backupRestoreManager.validateBackupJson(wrongAppJson)
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull()?.message?.contains("صالحة لتطبيق مصروفي") == true)
+        assertTrue(result.exceptionOrNull()?.message?.contains("صالحة لتطبيق مصروف") == true)
     }
 
     @Test

@@ -468,11 +468,11 @@ fun SettingsContent(
                 }
             }
 
-            // 5. بطاقة حول تطبيق مصروفي
+            // 5. بطاقة حول تطبيق مصروف
             item {
                 MasroofiItemCard(
-                    title = "عن تطبيق مصروفي",
-                    subtitle = "الإصدار 1.0.0 • تطبيق محلي لإدارة المصروفات",
+                    title = "عن تطبيق مصروف",
+                    subtitle = "الإصدار 1.1.0 • تطبيق محلي لإدارة المصروفات",
                     icon = Icons.Default.Info,
                     iconColor = TextSecondary,
                     onClick = onOpenAboutDialog
@@ -487,14 +487,14 @@ fun SettingsContent(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "مصروفي | Masroofi",
+                        text = "مصروف | Masroof",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "الإصدار 1.0.0 • يعمل محلياً دون إنترنت",
+                        text = "الإصدار 1.1.0 • يعمل محلياً دون إنترنت",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary,
                         fontSize = 11.sp

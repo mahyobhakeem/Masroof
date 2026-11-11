@@ -82,7 +82,7 @@ class BackupRestoreManager(
         val root = JSONObject()
         root.put("backupFormatVersion", 1)
         root.put("createdAt", nowStr)
-        root.put("appName", "Masroofi")
+        root.put("appName", "Masroof")
         root.put("currency", "YER")
 
         // 1. مصفوفة التصنيفات
@@ -150,8 +150,8 @@ class BackupRestoreManager(
 
         // 2. التحقق من اسم التطبيق والعملة
         val appName = root.optString("appName", "")
-        if (appName.isBlank() || appName != "Masroofi") {
-            return Result.failure(IllegalArgumentException("الملف ليس نسخة احتياطية صالحة لتطبيق مصروفي."))
+        if (appName.isBlank() || (appName != "Masroof" && appName != "Masroofi")) {
+            return Result.failure(IllegalArgumentException("الملف ليس نسخة احتياطية صالحة لتطبيق مصروف."))
         }
 
         val currency = root.optString("currency", "")

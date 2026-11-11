@@ -41,7 +41,7 @@ data class MonthlyBudgetBackupDto(
 data class BackupPayload(
     val backupFormatVersion: Int = 1,
     val createdAt: String,
-    val appName: String = "Masroofi",
+    val appName: String = "Masroof",
     val currency: String = "YER",
     val categories: List<CategoryBackupDto> = emptyList(),
     val transactions: List<TransactionBackupDto> = emptyList(),
