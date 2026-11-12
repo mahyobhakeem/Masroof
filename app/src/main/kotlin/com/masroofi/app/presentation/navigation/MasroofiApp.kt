@@ -108,7 +108,8 @@ fun MasroofiApp(
             categoryRepository = container.categoryRepository,
             monthlyBudgetRepository = container.monthlyBudgetRepository,
             transactionRepository = container.transactionRepository,
-            backupManager = container.backupManager
+            backupManager = container.backupManager,
+            cloudBackupManager = container.cloudBackupManager
         )
     )
 

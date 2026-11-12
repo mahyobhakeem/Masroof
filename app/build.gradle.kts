@@ -5,6 +5,10 @@ plugins {
   alias(libs.plugins.ksp)
 }
 
+if (file("google-services.json").exists()) {
+  apply(plugin = "com.google.gms.google-services")
+}
+
 android {
   namespace = "com.masroofi.app"
   compileSdk = 36
@@ -97,4 +101,13 @@ dependencies {
 
   // Kotlinx Serialization JSON
   implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+
+  // WorkManager
+  implementation(libs.androidx.work.runtime.ktx)
+
+  // Firebase Authentication & Cloud Firestore
+  implementation(platform(libs.firebase.bom))
+  implementation(libs.firebase.auth)
+  implementation(libs.firebase.firestore)
+  implementation(libs.play.services.auth)
 }

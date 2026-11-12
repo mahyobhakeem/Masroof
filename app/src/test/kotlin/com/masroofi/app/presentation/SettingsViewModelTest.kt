@@ -399,6 +399,27 @@ class SettingsViewModelTest {
         assertNull(testViewModel.uiState.value.pendingCurrencyCode)
         assertFalse(testViewModel.uiState.value.isCurrencySelectionOpen)
     }
+
+    @Test
+    fun `test google sign in dialog state toggle`() = runTest {
+        assertFalse(viewModel.uiState.value.showGoogleSignInDialog)
+
+        viewModel.openGoogleSignInDialog()
+        assertTrue(viewModel.uiState.value.showGoogleSignInDialog)
+
+        viewModel.dismissGoogleSignInDialog()
+        assertFalse(viewModel.uiState.value.showGoogleSignInDialog)
+    }
+
+    @Test
+    fun `test dismiss cloud restore confirmation dialog`() = runTest {
+        assertFalse(viewModel.uiState.value.isCloudRestoreConfirmationOpen)
+        assertNull(viewModel.uiState.value.pendingCloudRestoreMetadata)
+
+        viewModel.dismissCloudRestoreConfirmation()
+        assertFalse(viewModel.uiState.value.isCloudRestoreConfirmationOpen)
+        assertNull(viewModel.uiState.value.pendingCloudRestoreMetadata)
+    }
 }
 
 /**

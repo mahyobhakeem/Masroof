@@ -9,6 +9,10 @@ import androidx.lifecycle.viewModelScope
 import com.masroofi.app.data.backup.BackupFileManager
 import com.masroofi.app.data.backup.BackupManager
 import com.masroofi.app.data.backup.BackupSummary
+import com.masroofi.app.data.cloud.CloudBackupManager
+import com.masroofi.app.data.cloud.CloudBackupMetadata
+import com.masroofi.app.data.cloud.CloudBackupStatus
+import com.masroofi.app.data.cloud.CloudUserAccount
 import com.masroofi.app.data.export.CsvExporter
 import com.masroofi.app.data.preferences.ThemeMode
 import com.masroofi.app.data.preferences.UserPreferences
@@ -55,6 +59,15 @@ data class SettingsUiState(
     val localBackupFiles: List<File> = emptyList(),
     val isRestoreConfirmationOpen: Boolean = false,
     val pendingRestoreSummary: BackupSummary? = null,
+    val currentUser: CloudUserAccount? = null,
+    val cloudBackupStatus: CloudBackupStatus = CloudBackupStatus.IDLE,
+    val lastCloudBackupTime: Long? = null,
+    val isAutoBackupEnabled: Boolean = true,
+    val isCloudLoading: Boolean = false,
+    val availableCloudBackups: List<CloudBackupMetadata> = emptyList(),
+    val isCloudRestoreConfirmationOpen: Boolean = false,
+    val pendingCloudRestoreMetadata: CloudBackupMetadata? = null,
+    val showGoogleSignInDialog: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null
 ) {
@@ -73,7 +86,8 @@ class SettingsViewModel(
     private val categoryRepository: CategoryRepository,
     private val monthlyBudgetRepository: MonthlyBudgetRepository,
     private val transactionRepository: TransactionRepository,
-    private val backupManager: BackupManager
+    private val backupManager: BackupManager,
+    private val cloudBackupManager: CloudBackupManager? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -82,6 +96,36 @@ class SettingsViewModel(
     private val currentMonthStr = YearMonth.now().toString()
 
     init {
+        // مراقبة حساب السحابة وحالات النسخ
+        if (cloudBackupManager != null) {
+            viewModelScope.launch {
+                cloudBackupManager.provider.currentUser.collect { user ->
+                    _uiState.update { it.copy(currentUser = user) }
+                    if (user != null) {
+                        refreshAvailableCloudBackups()
+                    }
+                }
+            }
+            viewModelScope.launch {
+                cloudBackupManager.provider.backupStatus.collect { status ->
+                    _uiState.update { it.copy(cloudBackupStatus = status) }
+                }
+            }
+            viewModelScope.launch {
+                cloudBackupManager.provider.lastBackupTimestamp.collect { ts ->
+                    _uiState.update { it.copy(lastCloudBackupTime = ts) }
+                }
+            }
+            viewModelScope.launch {
+                cloudBackupManager.provider.isAutoBackupEnabled.collect { enabled ->
+                    _uiState.update { it.copy(isAutoBackupEnabled = enabled) }
+                }
+            }
+            // فحص التعديلات المعلقة
+            viewModelScope.launch {
+                cloudBackupManager.checkPendingChanges()
+            }
+        }
         // مراقبة وضع المظهر من DataStore
         viewModelScope.launch {
             preferencesManager.themeMode.distinctUntilChanged().collect { mode ->
@@ -671,6 +715,115 @@ class SettingsViewModel(
         }
     }
 
+    // ==========================================
+    // إدارة الحساب والنسخ الاحتياطي السحابي (Cloud Backup)
+    // ==========================================
+
+    fun openGoogleSignInDialog() {
+        _uiState.update { it.copy(showGoogleSignInDialog = true) }
+    }
+
+    fun dismissGoogleSignInDialog() {
+        _uiState.update { it.copy(showGoogleSignInDialog = false) }
+    }
+
+    fun signInWithGoogle(account: CloudUserAccount) {
+        val manager = cloudBackupManager ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCloudLoading = true, showGoogleSignInDialog = false) }
+            val res = manager.provider.signInWithGoogle(account)
+            _uiState.update { it.copy(isCloudLoading = false) }
+            if (res.isSuccess) {
+                _uiState.update { it.copy(successMessage = "تم تسجيل الدخول بنجاح بحساب ${account.email}") }
+                refreshAvailableCloudBackups()
+            } else {
+                _uiState.update { it.copy(errorMessage = "تعذر تسجيل الدخول بالسحابة: ${res.exceptionOrNull()?.message}") }
+            }
+        }
+    }
+
+    fun signOutFromGoogle() {
+        val manager = cloudBackupManager ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCloudLoading = true) }
+            val res = manager.provider.signOut()
+            _uiState.update { it.copy(isCloudLoading = false, availableCloudBackups = emptyList()) }
+            if (res.isSuccess) {
+                _uiState.update { it.copy(successMessage = "تم تسجيل الخروج من السحابة بنجاح") }
+            }
+        }
+    }
+
+    fun toggleAutoBackup(enabled: Boolean) {
+        val manager = cloudBackupManager ?: return
+        viewModelScope.launch {
+            manager.provider.setAutoBackupEnabled(enabled)
+        }
+    }
+
+    fun backupToCloudNow() {
+        val manager = cloudBackupManager ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCloudLoading = true) }
+            val res = manager.createAndUploadCloudBackup()
+            _uiState.update { it.copy(isCloudLoading = false) }
+            if (res.isSuccess) {
+                _uiState.update { it.copy(successMessage = "تم إنشاء النسخة الاحتياطية السحابية وحفظها بنجاح") }
+                refreshAvailableCloudBackups()
+            } else {
+                _uiState.update { it.copy(errorMessage = "فشل النسخ السحابي: ${res.exceptionOrNull()?.message}") }
+            }
+        }
+    }
+
+    fun refreshAvailableCloudBackups() {
+        val manager = cloudBackupManager ?: return
+        viewModelScope.launch {
+            val res = manager.provider.getAvailableBackups()
+            if (res.isSuccess) {
+                _uiState.update { it.copy(availableCloudBackups = res.getOrDefault(emptyList())) }
+            }
+        }
+    }
+
+    fun requestCloudRestore(backup: CloudBackupMetadata? = null) {
+        val target = backup ?: _uiState.value.availableCloudBackups.firstOrNull()
+        if (target != null) {
+            _uiState.update {
+                it.copy(
+                    isCloudRestoreConfirmationOpen = true,
+                    pendingCloudRestoreMetadata = target
+                )
+            }
+        } else {
+            _uiState.update { it.copy(errorMessage = "لا توجد نسخ سحابية متوفرة لهذا الحساب") }
+        }
+    }
+
+    fun dismissCloudRestoreConfirmation() {
+        _uiState.update {
+            it.copy(
+                isCloudRestoreConfirmationOpen = false,
+                pendingCloudRestoreMetadata = null
+            )
+        }
+    }
+
+    fun confirmCloudRestore() {
+        val manager = cloudBackupManager ?: return
+        val metadata = _uiState.value.pendingCloudRestoreMetadata ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCloudLoading = true, isCloudRestoreConfirmationOpen = false) }
+            val res = manager.restoreFromCloud(metadata)
+            _uiState.update { it.copy(isCloudLoading = false, pendingCloudRestoreMetadata = null) }
+            if (res.isSuccess) {
+                _uiState.update { it.copy(successMessage = "تمت استعادة كافة بياناتك من السحابة بنجاح تام") }
+            } else {
+                _uiState.update { it.copy(errorMessage = "فشلت استعادة النسخة السحابية: ${res.exceptionOrNull()?.message}") }
+            }
+        }
+    }
+
     fun clearMessages() {
         _uiState.update { it.copy(errorMessage = null, successMessage = null) }
     }
@@ -684,7 +837,8 @@ class SettingsViewModelFactory(
     private val categoryRepository: CategoryRepository,
     private val monthlyBudgetRepository: MonthlyBudgetRepository,
     private val transactionRepository: TransactionRepository,
-    private val backupManager: BackupManager
+    private val backupManager: BackupManager,
+    private val cloudBackupManager: CloudBackupManager? = null
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -694,7 +848,8 @@ class SettingsViewModelFactory(
                 categoryRepository = categoryRepository,
                 monthlyBudgetRepository = monthlyBudgetRepository,
                 transactionRepository = transactionRepository,
-                backupManager = backupManager
+                backupManager = backupManager,
+                cloudBackupManager = cloudBackupManager
             ) as T
         }
         throw IllegalArgumentException("فئة نموذج العرض غير معروفة: ${modelClass.name}")

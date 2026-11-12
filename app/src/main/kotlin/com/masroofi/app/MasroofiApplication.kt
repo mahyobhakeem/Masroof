@@ -4,6 +4,10 @@ import android.app.Application
 import android.content.Context
 import com.masroofi.app.data.backup.BackupManager
 import com.masroofi.app.data.backup.BackupRestoreManager
+import com.masroofi.app.data.cloud.CloudBackupManager
+import com.masroofi.app.data.cloud.CloudBackupProvider
+import com.masroofi.app.data.cloud.CloudBackupWorker
+import com.masroofi.app.data.cloud.PersistentCloudBackupProvider
 import com.masroofi.app.data.database.MasroofiDatabase
 import com.masroofi.app.data.preferences.PreferencesManager
 import com.masroofi.app.data.repository.CategoryRepositoryImpl
@@ -30,6 +34,8 @@ interface AppContainer {
     val setMonthlyBudgetUseCase: SetMonthlyBudgetUseCase
     val getMonthlyReportUseCase: GetMonthlyReportUseCase
     val backupManager: BackupManager
+    val cloudBackupProvider: CloudBackupProvider
+    val cloudBackupManager: CloudBackupManager
 }
 
 /**
@@ -43,6 +49,19 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
 
     override val backupManager: BackupManager by lazy {
         BackupRestoreManager(database, preferencesManager = preferencesManager)
+    }
+
+    override val cloudBackupProvider: CloudBackupProvider by lazy {
+        PersistentCloudBackupProvider(context, preferencesManager)
+    }
+
+    override val cloudBackupManager: CloudBackupManager by lazy {
+        CloudBackupManager(
+            database = database,
+            backupManager = backupManager,
+            provider = cloudBackupProvider,
+            preferencesManager = preferencesManager
+        )
     }
 
     override val categoryRepository: CategoryRepository by lazy {
@@ -85,5 +104,6 @@ class MasroofiApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = DefaultAppContainer(applicationContext)
+        CloudBackupWorker.schedulePeriodicBackup(applicationContext)
     }
 }

@@ -1,0 +1,289 @@
+rules_version = '2';
+
+// ============================================================================
+// قواعد أمان Cloud Firestore لتطبيق "مصروف" (Masroof)
+// ============================================================================
+// تم تصميم هذه القواعد وفقاً لأعلى معايير الأمان والإنتاجية لحماية البيانات المالية
+// والنسخ الاحتياطية السحابية للمستخدمين.
+//
+// المبادئ الأساسية:
+// 1. الحرمان الافتراضي (Default Deny): إغلاق كامل لكافة مسارات قاعدة البيانات تلقائياً.
+// 2. التحقق من الهوية (Authentication): اشتراط تسجيل الدخول لجميع العمليات.
+// 3. العزل التام للمستخدمين (Zero-Trust User Isolation): لا يمكن لأي مستخدم الوصول
+//    إلى بيانات مستخدم آخر، ويتم التحقق من تطابق معرف المستخدم في كل مسار ومستند.
+// 4. نمط دالة التحقق الشامل (Validator Function Pattern): التحقق الصارم من الحقول
+//    والأنواع والحدود القصوى للحجم في عمليتي الإنشاء (Create) والتعديل (Update).
+// 5. حماية الحقول غير القابلة للتغيير (Immutability): منع تعديل معرّفات المالك وتواريخ الإنشاء.
+// 6. منع هجمات استنزاف الموارد (DoS & Resource Exhaustion Protection): تحديد قيود
+//    قصوى صارمة لحجم النصوص وحجم أجزاء النسخ الاحتياطية (Chunks).
+// ============================================================================
+
+// ============================================================================
+// هيكلية البيانات المفترضة (Assumed Data Model)
+// ============================================================================
+//
+// 1. المجموعة: /users/{userId}
+//    - مستند إعدادات وحساب المستخدم
+//    - الحقول:
+//      * uid: string (إلزامي، 1-128 حرف، يطابق request.auth.uid)
+//      * email: string (اختياري، بصيغة بريد إلكتروني صالحة)
+//      * displayName: string (اختياري، 1-100 حرف)
+//      * selectedCurrency: string (اختياري، 2-10 أحرف، مثل "YER", "SAR", "USD")
+//      * createdAt: timestamp أو string (اختياري)
+//      * updatedAt: timestamp أو string (اختياري)
+//
+// 2. المجموعة الفرعية: /users/{userId}/backups/{backupId}
+//    - بيانات وبيانات وصفية (Metadata) للنسخة الاحتياطية
+//    - الحقول:
+//      * backupId: string (اختياري/إلزامي، 1-100 حرف، يطابق معرف المستند)
+//      * userId: string (اختياري/إلزامي، 1-128 حرف، يطابق معرف المستخدم)
+//      * appName: string (إلزامي، 1-50 حرف، مثل "Masroof" أو "Masroofi")
+//      * backupFormatVersion: int (إلزامي، رقم إصدار النسخة، مثل 1)
+//      * createdAt: timestamp أو string (إلزامي، وقت إنشاء النسخة)
+//      * updatedAt: timestamp أو string (اختياري، وقت التحديث)
+//      * currency: string (اختياري، 2-10 أحرف، مثل "YER")
+//      * transactionCount: int (اختياري، عدد العمليات >= 0)
+//      * categoryCount: int (اختياري، عدد التصنيفات >= 0)
+//      * budgetCount: int (اختياري، عدد الميزانيات >= 0)
+//      * totalChunks: int (إلزامي، عدد الأجزاء الكلي >= 1 و <= 5000)
+//      * totalSize: int أو number (اختياري، الحجم الكلي بالبايت >= 0)
+//      * status: string (إلزامي، ['pending', 'uploading', 'completed', 'failed'])
+//      * checksum: string (اختياري، 1-128 حرف)
+//      * note: string (اختياري، حتى 500 حرف)
+//      * deviceInfo: string (اختياري، حتى 200 حرف)
+//
+// 3. المجموعة الفرعية للأجزاء: /users/{userId}/backups/{backupId}/chunks/{chunkIndex}
+//    - أجزاء الحمولة المضغوطة (Payload Chunks)
+//    - الحقول:
+//      * chunkIndex: int أو string (إلزامي، فهرس الجزء >= 0)
+//      * backupId: string (إلزامي، 1-100 حرف، يطابق معرف النسخة)
+//      * userId: string (اختياري، يطابق معرف المستخدم)
+//      * data: string (إلزامي، نص مشفر/مضغوط Base64 أو JSON، بحد أقصى 900KB)
+//      * size: int أو number (اختياري، حجم الجزء بالبايت >= 0 و <= 1048576)
+//      * totalChunks: int (اختياري، إجمالي الأجزاء >= 1)
+//      * checksum: string (اختياري، 1-128 حرف)
+//      * createdAt: timestamp أو string (اختياري)
+//
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ------------------------------------------------------------------------
+    // الحرمان الافتراضي الشامل لكافة المسارات غير المعرفة صراحة
+    // ------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ========================================================================
+    // الدوال المساعدة العامة (General Helper Functions)
+    // ========================================================================
+
+    // التحقق من أن الطلب صادر من مستخدم مسجل دخوله عبر Firebase Auth
+    function isAuthenticated() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    // التحقق من ملكية المستخدم للمسار (مطابقة معرف المستخدم بالتوثيق)
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // التحقق من وجود جميع الحقول المطلوبة
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // التحقق من اقتصار المستند على الحقول المسموح بها فقط لمنع Schema Pollution
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // التحقق من عدم تغيير الحقول المحمية غير القابلة للتعديل
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // التحقق من صحة النصوص وحدود طولها
+    function isValidString(val, minLen, maxLen) {
+      return val is string && val.size() >= minLen && val.size() <= maxLen;
+    }
+
+    // التحقق من النص الاختياري
+    function isValidOptionalString(field, minLen, maxLen) {
+      return !(field in request.resource.data) ||
+             (request.resource.data[field] is string &&
+              request.resource.data[field].size() >= minLen &&
+              request.resource.data[field].size() <= maxLen);
+    }
+
+    // التحقق من الأعداد الصحيحة غير السالبة
+    function isValidNonNegativeInt(val, maxVal) {
+      return val is int && val >= 0 && val <= maxVal;
+    }
+
+    // التحقق من الأعداد الصحيحة الموجبة
+    function isValidPositiveInt(val, maxVal) {
+      return val is int && val > 0 && val <= maxVal;
+    }
+
+    // التحقق من صيغة التاريخ (سواء كان Timestamp أو نصاً منسقاً)
+    function isValidDate(val) {
+      return (val is timestamp) ||
+             (val is string && val.size() >= 10 && val.size() <= 50);
+    }
+
+    // التحقق من صيغة البريد الإلكتروني
+    function isValidEmail(email) {
+      return email is string &&
+             email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    // ========================================================================
+    // دوال التحقق من صحة بيانات المستخدم (User Domain Validators)
+    // ========================================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'selectedCurrency', 'createdAt', 'updatedAt']) &&
+             hasRequiredFields(['uid']) &&
+             data.uid == request.auth.uid &&
+             isValidOptionalString('email', 3, 100) &&
+             isValidOptionalString('displayName', 1, 100) &&
+             isValidOptionalString('selectedCurrency', 2, 10) &&
+             (!('email' in data) || isValidEmail(data.email)) &&
+             (!('createdAt' in data) || isValidDate(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidDate(data.updatedAt));
+    }
+
+    // ========================================================================
+    // دوال التحقق من صحة بيانات النسخة الاحتياطية (Backup Domain Validators)
+    // ========================================================================
+
+    function isValidBackup(data) {
+      let allowedFields = [
+        'backupId', 'userId', 'appName', 'backupFormatVersion',
+        'createdAt', 'updatedAt', 'currency', 'transactionCount',
+        'categoryCount', 'budgetCount', 'totalChunks', 'totalSize',
+        'status', 'checksum', 'note', 'deviceInfo'
+      ];
+      let requiredFields = ['appName', 'backupFormatVersion', 'createdAt', 'totalChunks', 'status'];
+
+      return hasOnlyAllowedFields(allowedFields) &&
+             hasRequiredFields(requiredFields) &&
+             // التحقق من اسم التطبيق وإصدار النسخة
+             isValidString(data.appName, 1, 50) &&
+             (data.backupFormatVersion is int && data.backupFormatVersion >= 1 && data.backupFormatVersion <= 100) &&
+             isValidDate(data.createdAt) &&
+             isValidPositiveInt(data.totalChunks, 5000) &&
+             (data.status in ['pending', 'uploading', 'completed', 'failed']) &&
+             // التحقق من الحقول الاختيارية والحدود القصوى
+             (!('updatedAt' in data) || isValidDate(data.updatedAt)) &&
+             (!('currency' in data) || isValidString(data.currency, 2, 10)) &&
+             (!('transactionCount' in data) || isValidNonNegativeInt(data.transactionCount, 10000000)) &&
+             (!('categoryCount' in data) || isValidNonNegativeInt(data.categoryCount, 10000)) &&
+             (!('budgetCount' in data) || isValidNonNegativeInt(data.budgetCount, 10000)) &&
+             (!('totalSize' in data) || (data.totalSize is number && data.totalSize >= 0 && data.totalSize <= 104857600)) &&
+             (!('checksum' in data) || isValidString(data.checksum, 1, 128)) &&
+             (!('note' in data) || isValidString(data.note, 0, 500)) &&
+             (!('deviceInfo' in data) || isValidString(data.deviceInfo, 1, 200)) &&
+             (!('backupId' in data) || isValidString(data.backupId, 1, 100)) &&
+             (!('userId' in data) || (data.userId is string && data.userId == request.auth.uid));
+    }
+
+    function isValidBackupCreate(userId, backupId) {
+      return isValidBackup(request.resource.data) &&
+             (!('userId' in request.resource.data) || request.resource.data.userId == userId) &&
+             (!('backupId' in request.resource.data) || request.resource.data.backupId == backupId);
+    }
+
+    function isValidBackupUpdate(userId, backupId) {
+      return isValidBackup(request.resource.data) &&
+             areImmutableFieldsUnchanged(['userId', 'backupId', 'createdAt', 'backupFormatVersion']) &&
+             (!('userId' in request.resource.data) || request.resource.data.userId == userId) &&
+             (!('backupId' in request.resource.data) || request.resource.data.backupId == backupId);
+    }
+
+    // ========================================================================
+    // دوال التحقق من صحة أجزاء النسخة الاحتياطية (Chunk Domain Validators)
+    // ========================================================================
+
+    function isValidChunk(data) {
+      let allowedFields = ['chunkIndex', 'backupId', 'userId', 'data', 'size', 'totalChunks', 'checksum', 'createdAt'];
+      let requiredFields = ['chunkIndex', 'backupId', 'data'];
+
+      return hasOnlyAllowedFields(allowedFields) &&
+             hasRequiredFields(requiredFields) &&
+             // التحقق من فهرس الجزء (يقبل رقم صحيح أو نص معرّف)
+             ((data.chunkIndex is int && data.chunkIndex >= 0 && data.chunkIndex <= 5000) ||
+              (data.chunkIndex is string && data.chunkIndex.size() >= 1 && data.chunkIndex.size() <= 20)) &&
+             isValidString(data.backupId, 1, 100) &&
+             // حماية قصوى من استنزاف الموارد (DoS): بيانات الجزء لا تتعدى 900KB
+             (data.data is string && data.data.size() > 0 && data.data.size() <= 921600) &&
+             (!('size' in data) || (data.size is number && data.size >= 0 && data.size <= 1048576)) &&
+             (!('totalChunks' in data) || isValidPositiveInt(data.totalChunks, 5000)) &&
+             (!('checksum' in data) || isValidString(data.checksum, 1, 128)) &&
+             (!('createdAt' in data) || isValidDate(data.createdAt)) &&
+             (!('userId' in data) || (data.userId is string && data.userId == request.auth.uid));
+    }
+
+    function isValidChunkCreate(userId, backupId, chunkIndex) {
+      return isValidChunk(request.resource.data) &&
+             request.resource.data.backupId == backupId &&
+             (!('userId' in request.resource.data) || request.resource.data.userId == userId);
+    }
+
+    function isValidChunkUpdate(userId, backupId, chunkIndex) {
+      return isValidChunk(request.resource.data) &&
+             areImmutableFieldsUnchanged(['backupId', 'userId', 'chunkIndex']) &&
+             request.resource.data.backupId == backupId &&
+             (!('userId' in request.resource.data) || request.resource.data.userId == userId);
+    }
+
+    // ========================================================================
+    // قواعد مسارات المستخدمين والنسخ السحابية
+    // ========================================================================
+
+    match /users/{userId} {
+      // السماح للمالك فقط بقراءة أو تعديل ملف حسابه الشخصي
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && areImmutableFieldsUnchanged(['uid', 'createdAt']);
+      allow delete: if isOwner(userId);
+
+      // ----------------------------------------------------------------------
+      // مسار النسخ الاحتياطية: /users/{userId}/backups/{backupId}
+      // ----------------------------------------------------------------------
+      match /backups/{backupId} {
+        // القراءة: للمالك فقط
+        allow read: if isOwner(userId);
+
+        // الإنشاء: للمالك فقط مع التحقق الشامل من بنية البيانات
+        allow create: if isOwner(userId) && isValidBackupCreate(userId, backupId);
+
+        // التعديل: للمالك فقط مع تطبيق دالة التحقق ومنع التلاعب بالحقول الحساسة
+        allow update: if isOwner(userId) && isValidBackupUpdate(userId, backupId);
+
+        // الحذف: للمالك فقط
+        allow delete: if isOwner(userId);
+
+        // --------------------------------------------------------------------
+        // مسار أجزاء النسخة المضغوطة: /users/{userId}/backups/{backupId}/chunks/{chunkIndex}
+        // --------------------------------------------------------------------
+        match /chunks/{chunkIndex} {
+          // القراءة: للمالك فقط
+          allow read: if isOwner(userId);
+
+          // الإنشاء: للمالك فقط مع التحقق من الحجم وسلامة الجزء
+          allow create: if isOwner(userId) && isValidChunkCreate(userId, backupId, chunkIndex);
+
+          // التعديل: للمالك فقط مع التحقق من سلامة الجزء وعدم تغيير المعرفات
+          allow update: if isOwner(userId) && isValidChunkUpdate(userId, backupId, chunkIndex);
+
+          // الحذف: للمالك فقط
+          allow delete: if isOwner(userId);
+        }
+      }
+    }
+  }
+}

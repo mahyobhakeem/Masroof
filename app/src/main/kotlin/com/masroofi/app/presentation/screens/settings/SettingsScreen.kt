@@ -25,8 +25,11 @@ import com.masroofi.app.data.preferences.ThemeMode
 import com.masroofi.app.domain.model.Category
 import com.masroofi.app.domain.model.CurrencyCatalog
 import com.masroofi.app.domain.model.TransactionType
+import com.masroofi.app.presentation.components.CloudBackupCard
+import com.masroofi.app.presentation.components.CloudRestoreConfirmationDialog
 import com.masroofi.app.presentation.components.CurrencyChangeConfirmationDialog
 import com.masroofi.app.presentation.components.CurrencySelectionSheet
+import com.masroofi.app.presentation.components.GoogleSignInDialog
 import com.masroofi.app.presentation.components.LocalAppCurrency
 import com.masroofi.app.presentation.components.MasroofiExpandableCard
 import com.masroofi.app.presentation.components.MasroofiItemCard
@@ -109,8 +112,29 @@ fun SettingsScreen(
         onConfirmRestore = { viewModel.confirmRestore() },
         onCancelRestore = { viewModel.cancelRestore() },
         onOpenCurrencySelection = { viewModel.openCurrencySelection() },
+        onCloudSignInClick = { viewModel.openGoogleSignInDialog() },
+        onCloudSignOutClick = { viewModel.signOutFromGoogle() },
+        onAutoBackupToggle = { viewModel.toggleAutoBackup(it) },
+        onBackupNowClick = { viewModel.backupToCloudNow() },
+        onCloudRestoreClick = { viewModel.requestCloudRestore() },
         modifier = modifier
     )
+
+    if (uiState.showGoogleSignInDialog) {
+        GoogleSignInDialog(
+            onDismiss = { viewModel.dismissGoogleSignInDialog() },
+            onConfirmSignIn = { viewModel.signInWithGoogle(it) }
+        )
+    }
+
+    val pendingCloudMetadata = uiState.pendingCloudRestoreMetadata
+    if (uiState.isCloudRestoreConfirmationOpen && pendingCloudMetadata != null) {
+        CloudRestoreConfirmationDialog(
+            metadata = pendingCloudMetadata,
+            onDismiss = { viewModel.dismissCloudRestoreConfirmation() },
+            onConfirmRestore = { viewModel.confirmCloudRestore() }
+        )
+    }
 
     if (uiState.isCurrencySelectionOpen) {
         CurrencySelectionSheet(
@@ -164,6 +188,11 @@ fun SettingsContent(
     onConfirmRestore: () -> Unit = {},
     onCancelRestore: () -> Unit = {},
     onOpenCurrencySelection: () -> Unit = {},
+    onCloudSignInClick: () -> Unit = {},
+    onCloudSignOutClick: () -> Unit = {},
+    onAutoBackupToggle: (Boolean) -> Unit = {},
+    onBackupNowClick: () -> Unit = {},
+    onCloudRestoreClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -352,7 +381,23 @@ fun SettingsContent(
                 }
             }
 
-            // 4. بطاقة النسخ الاحتياطي وتصدير البيانات (JSON & CSV)
+            // 5. بطاقة الحساب والنسخ الاحتياطي السحابي (Google Cloud Backup)
+            item {
+                CloudBackupCard(
+                    currentUser = uiState.currentUser,
+                    backupStatus = uiState.cloudBackupStatus,
+                    lastBackupTime = uiState.lastCloudBackupTime,
+                    isAutoBackupEnabled = uiState.isAutoBackupEnabled,
+                    isCloudLoading = uiState.isCloudLoading,
+                    onSignInClick = onCloudSignInClick,
+                    onSignOutClick = onCloudSignOutClick,
+                    onAutoBackupToggle = onAutoBackupToggle,
+                    onBackupNowClick = onBackupNowClick,
+                    onRestoreClick = onCloudRestoreClick
+                )
+            }
+
+            // 6. بطاقة النسخ الاحتياطي وتصدير البيانات (JSON & CSV)
             item {
                 MasroofiExpandableCard(
                     title = "النسخ الاحتياطي وتصدير البيانات",
