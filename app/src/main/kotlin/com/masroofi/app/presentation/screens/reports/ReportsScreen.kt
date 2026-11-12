@@ -368,13 +368,13 @@ private fun ReportsSummaryCards(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(ExpenseRed.copy(alpha = 0.12f)),
+                            .background(EmeraldLightBg),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.TrendingDown,
                             contentDescription = null,
-                            tint = ExpenseRed,
+                            tint = EmeraldPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -411,13 +411,13 @@ private fun ReportsSummaryCards(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(IncomeGreen.copy(alpha = 0.12f)),
+                            .background(EmeraldLightBg),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                             contentDescription = null,
-                            tint = IncomeGreen,
+                            tint = EmeraldPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -464,13 +464,13 @@ private fun ReportsSummaryCards(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(netColor.copy(alpha = 0.12f)),
+                            .background(EmeraldLightBg),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Savings,
                             contentDescription = null,
-                            tint = netColor,
+                            tint = EmeraldPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -784,13 +784,13 @@ private fun ExpenseBreakdownDonutChartCard(
                                     modifier = Modifier
                                         .size(32.dp)
                                         .clip(CircleShape)
-                                        .background(catColor.copy(alpha = 0.15f)),
+                                        .background(EmeraldLightBg),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = catIcon,
                                         contentDescription = null,
-                                        tint = catColor,
+                                        tint = EmeraldPrimary,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }

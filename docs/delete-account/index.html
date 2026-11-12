@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حذف الحساب والبيانات السحابية | تطبيق مصروف (Masroof)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #16A67A;
+            --primary-dark: #118461;
+            --primary-light: #E6F4EF;
+            --danger: #D92D20;
+            --danger-light: #FEE4E2;
+            --text-main: #1D2939;
+            --text-secondary: #475467;
+            --bg-page: #F8FAF9;
+            --bg-card: #FFFFFF;
+            --border: #E4E7EC;
+            --radius-card: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Tajawal', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.8;
+            padding: 32px 16px;
+            direction: rtl;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 36px;
+            padding: 32px 24px;
+            background: var(--bg-card);
+            border-radius: var(--radius-card);
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(22, 166, 122, 0.05);
+        }
+
+        .logo-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 72px;
+            height: 72px;
+            background: var(--danger-light);
+            border-radius: 20px;
+            margin-bottom: 16px;
+        }
+
+        .logo-badge svg {
+            width: 38px;
+            height: 38px;
+            fill: var(--danger);
+        }
+
+        h1 {
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--danger);
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 15px;
+            color: var(--text-secondary);
+        }
+
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-card);
+            border: 1px solid var(--border);
+            padding: 28px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+
+        h2 {
+            font-size: 19px;
+            font-weight: 700;
+            color: var(--primary-dark);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        h2.danger-title {
+            color: var(--danger);
+        }
+
+        p {
+            font-size: 15px;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        ol, ul {
+            padding-right: 20px;
+            margin-bottom: 14px;
+        }
+
+        li {
+            margin-bottom: 10px;
+            font-size: 15px;
+            color: var(--text-secondary);
+        }
+
+        .step-badge {
+            display: inline-block;
+            background: var(--primary-light);
+            color: var(--primary-dark);
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 6px;
+            margin-left: 6px;
+        }
+
+        .alert-box {
+            background: var(--danger-light);
+            border-right: 4px solid var(--danger);
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+
+        .alert-box p {
+            color: #912018;
+            font-weight: 600;
+            margin-bottom: 0;
+        }
+
+        .info-box {
+            background: var(--primary-light);
+            border-right: 4px solid var(--primary);
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+
+        .info-box p {
+            color: var(--primary-dark);
+            font-weight: 600;
+            margin-bottom: 0;
+        }
+
+        .email-btn {
+            display: inline-block;
+            background: var(--primary);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 15px;
+            margin-top: 8px;
+            transition: background 0.2s;
+        }
+
+        .email-btn:hover {
+            background: var(--primary-dark);
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 48px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="logo-badge">
+            <svg viewBox="0 0 24 24">
+                <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+            </svg>
+        </div>
+        <h1>آلية حذف الحساب والبيانات السحابية</h1>
+        <p class="subtitle">تطبيق مصروف (Masroof) • امتثال تام لمعايير وسياسات متجر Google Play</p>
+    </header>
+
+    <div class="card">
+        <h2>نظرة عامة على سياسة حذف البيانات</h2>
+        <p>يلتزم تطبيق <strong>مصروف</strong> بتمكين المستخدمين من التحكم الكامل في بياناتهم وخصوصيتهم. إذا قمت مسبقاً بتفعيل ميزة النسخ السحابي الاختياري عبر حساب Google، يمكنك في أي وقت حذف كافة بياناتك السحابية وحسابك نهائياً سواء من داخل التطبيق مباشرة أو عبر مراسلتنا من خلال هذا الرابط.</p>
+        <div class="info-box">
+            <p>ملاحظة: إذا لم تقم بتسجيل الدخول بحساب Google واستخدمت التطبيق محلياً فقط، فإن التطبيق لا يحتوي على أي بيانات تخصك في السحابة إطلاقاً، ويكفي إلغاء تثبيت التطبيق أو مسح بياناته من إعدادات هاتفك لحذف كل شيء.</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>الطريقة الأولى: الحذف الفوري والمباشر من داخل التطبيق (موصى بها)</h2>
+        <p>يمكنك حذف بياناتك وحسابك السحابي فوراً دون انتظار عبر الخطوات البسيطة التالية:</p>
+        <ol>
+            <li><span class="step-badge">الخطوة 1</span> افتح تطبيق <strong>مصروف</strong> على هاتفك وانتقل إلى تبويب <strong>الإعدادات</strong>.</li>
+            <li><span class="step-badge">الخطوة 2</span> انزل إلى بطاقة <strong>"الحساب والنسخ الاحتياطي السحابي"</strong>.</li>
+            <li><span class="step-badge">الخطوة 3</span> انقر على خيار <strong>"حذف الحساب والبيانات السحابية"</strong> المميز باللون التحذيري.</li>
+            <li><span class="step-badge">الخطوة 4</span> ستظهر لك نافذة تأكيد تتيح لك:
+                <ul>
+                    <li>تصدير نسخة احتياطية محلية (JSON) من بياناتك قبل الحذف إذا رغبت بالاحتفاظ بها.</li>
+                    <li>اختيار ما إذا كنت ترغب في الإبقاء على بياناتك محلياً في الهاتف ومتابعة استخدامه كالمعتاد (الخيار الافتراضي)، أو مسح البيانات المحلية أيضاً من الهاتف.</li>
+                </ul>
+            </li>
+            <li><span class="step-badge">الخطوة 5</span> انقر على <strong>"تأكيد الحذف النهائي"</strong>. سيقوم التطبيق فورياً بحذف كافة المستندات السحابية والنسخ وأجزائها من خوادم السحابة وتسجيل الخروج.</li>
+        </ol>
+    </div>
+
+    <div class="card">
+        <h2>الطريقة الثانية: طلب الحذف عبر مراسلة المطور</h2>
+        <p>إذا قمت بإلغاء تثبيت التطبيق أو فقدت هاتفك وترغب في حذف نسختك السحابية وحسابك من قواعد بيانات السحابة، يمكنك إرسال طلب حذف عبر البريد الإلكتروني وسنقوم بتنفيذه في غضون 48 ساعة كحد أقصى:</p>
+        <ol>
+            <li>أرسل بريداً إلكترونياً إلى: <strong>support@masroofapp.com</strong></li>
+            <li>اكتب في عنوان الرسالة: <strong>طلب حذف الحساب والبيانات السحابية - تطبيق مصروف</strong>.</li>
+            <li>يجب إرسال الطلب من نفس عنوان بريد Google الذي قمت بربطه بالتطبيق للتحقق من ملكيتك للبيانات.</li>
+            <li>سيتم الرد عليك بتأكيد مسح وحذف كافة سجلات ونسخ الحساب من خوادم Firebase السحابية.</li>
+        </ol>
+        <div style="text-align: center; margin-top: 16px;">
+            <a href="mailto:support@masroofapp.com?subject=طلب%20حذف%20الحساب%20والبيانات%20السحابية%20-%20تطبيق%20مصروف" class="email-btn">
+                إرسال طلب الحذف عبر البريد الإلكتروني
+            </a>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 class="danger-title">ما الذي يتم حذفه تحديداً؟</h2>
+        <div class="alert-box">
+            <p>عند تأكيد الحذف، يتم مسح التالي نهائياً وبلا رجعة:</p>
+        </div>
+        <ul>
+            <li><strong>مستند المستخدم:</strong> يُحذف معرف المستخدم المسجل في مسار <code>/users/{userId}</code>.</li>
+            <li><strong>كافة النسخ الاحتياطية السحابية:</strong> يتم مسح جميع مستندات النسخ السحابية في المسار <code>/users/{userId}/backups/*</code>.</li>
+            <li><strong>جميع أجزاء البيانات المضغوطة:</strong> تُحذف كافة أجزاء الحمولات المشفرة <code>/chunks/*</code> التابعة للمستخدم.</li>
+            <li><strong>إلغاء جلسة التوثيق:</strong> يتم إلغاء ترخيص الحساب السحابي بشكل كامل.</li>
+        </ul>
+    </div>
+
+    <footer>
+        <p>جميع الحقوق محفوظة &copy; 2026 تطبيق مصروف (Masroof)</p>
+        <p style="margin-top: 6px;"><a href="../privacy/index.html">العودة إلى سياسة الخصوصية</a></p>
+    </footer>
+</div>
+
+</body>
+</html>

@@ -771,7 +771,7 @@ fun RealTransactionRowItem(
     val amountColor = if (isExpense) ExpenseRed else IncomeGreen
     val amountPrefix = if (isExpense) "- " else "+ "
     val categoryIcon = CategoryIconHelper.getIcon(transaction.categoryIconKey)
-    val categoryColor = CategoryIconHelper.getColor(transaction.categoryIconKey)
+    val categoryColor = EmeraldPrimary
 
     Surface(
         modifier = Modifier
@@ -789,12 +789,12 @@ fun RealTransactionRowItem(
                 .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // أيقونة التصنيف
+            // أيقونة التصنيف باللون الأخضر الزمردي الموحد
             Box(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(categoryColor.copy(alpha = 0.12f)),
+                    .background(EmeraldLightBg),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

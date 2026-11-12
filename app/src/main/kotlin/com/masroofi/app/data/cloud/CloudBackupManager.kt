@@ -175,4 +175,31 @@ class CloudBackupManager(
         } catch (_: Exception) {
         }
     }
+
+    /**
+     * حذف الحساب والبيانات السحابية بالكامل امتثالاً لسياسات Google Play
+     * يتم حذف كافة النسخ الاحتياطية السحابية وأجزائها (Chunks) من Firestore
+     * مع الإبقاء على البيانات المحلية في الهاتف افتراضياً (أو مسحها اختيارياً إذا اختار المستخدم ذلك)
+     */
+    suspend fun deleteAccountAndCloudData(wipeLocalData: Boolean = false): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            // 1. حذف جميع النسخ السحابية وأجزائها التابعة للمستخدم
+            val deleteCloudResult = provider.deleteUserCloudData()
+            if (deleteCloudResult.isFailure) {
+                return@withContext deleteCloudResult
+            }
+
+            // 2. تسجيل الخروج وإلغاء ارتباط الجلسة السحابية
+            provider.signOut()
+
+            // 3. مسح البيانات المحلية من قاعدة بيانات الهاتف فقط إذا طلب المستخدم ذلك صراحة
+            if (wipeLocalData) {
+                database.clearAllTables()
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

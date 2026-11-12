@@ -33,25 +33,24 @@ object CategoryIconHelper {
         }
     }
 
-    fun getColor(iconKey: String?): Color {
-        return when (iconKey) {
-            "fastfood" -> CategoryFood
-            "directions_car" -> CategoryTransport
-            "shopping_bag" -> CategoryShopping
-            "wifi" -> CategoryBills
-            "receipt" -> CategoryBills
-            "home" -> CategoryTransport
-            "local_hospital" -> CategoryHealth
-            "school" -> CategoryTransport
-            "sports_esports" -> CategoryEntertainment
-            "more_horiz" -> TextSecondary
-            "payments" -> IncomeGreen
-            "more_time" -> IncomeGreen
-            "trending_up" -> PrimaryGreen
-            "card_giftcard" -> IncomeGreen
-            "savings" -> IncomeGreen
-            else -> PrimaryGreen
-        }
+    /**
+     * لون أيقونات التصنيفات الموحد باللون الأخضر الزمردي لمنع التشتت البصري
+     * يضمن استخدام PrimaryGreen (#16A67A) في الوضع الفاتح و (#35B98A) في الوضع الداكن
+     */
+    fun getColor(iconKey: String? = null): Color {
+        return EmeraldPrimary
+    }
+
+    fun getColor(isDarkTheme: Boolean): Color {
+        return if (isDarkTheme) EmeraldDark else EmeraldPrimary
+    }
+
+    /**
+     * لون الخلفية الدائرية الناعمة الموحدة لأيقونات التصنيفات
+     * (#E6F4EF في الوضع الفاتح، و #16A67A بشفافية 18% في الوضع الداكن)
+     */
+    fun getBackgroundColor(isDarkTheme: Boolean = false): Color {
+        return if (isDarkTheme) EmeraldDarkBg else EmeraldLightBg
     }
 
     /**

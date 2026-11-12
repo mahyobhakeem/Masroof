@@ -9,6 +9,12 @@ val IncomeGreen = Color(0xFF35B98A)
 val ExpenseRed = Color(0xFFE76F75)
 val TextSecondary = Color(0xFF8A94A6)
 
+// ألوان الهوية البصرية الموحدة للأيقونات (اللون الأخضر الزمردي)
+val EmeraldPrimary = Color(0xFF16A67A)
+val EmeraldDark = Color(0xFF35B98A)
+val EmeraldLightBg = Color(0xFFE6F4EF)
+val EmeraldDarkBg = Color(0x2E16A67A) // شفافية 18% للوضع الداكن
+
 // خلفيات وأسطح الوضع الفاتح
 val LightBackground = Color(0xFFF4F6F9)
 val LightSurface = Color(0xFFFFFFFF)

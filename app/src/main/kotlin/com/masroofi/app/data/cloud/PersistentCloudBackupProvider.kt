@@ -20,13 +20,14 @@ import java.io.File
  * /users/{userId}/backups/{backupId}/chunks/{chunkIndex}.json
  */
 class PersistentCloudBackupProvider(
-    private val context: Context,
+    private val context: Context? = null,
     private val preferencesManager: PreferencesManager? = null,
-    private val externalScope: CoroutineScope = CoroutineScope(Dispatchers.IO)
+    private val externalScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
+    cloudRootDirOverride: File? = null
 ) : CloudBackupProvider {
 
-    private val cloudRootDir: File
-        get() = File(context.filesDir, "cloud_storage").apply { if (!exists()) mkdirs() }
+    private val cloudRootDir: File = cloudRootDirOverride
+        ?: File(context?.filesDir ?: File(System.getProperty("java.io.tmpdir"), "masroof_cloud"), "cloud_storage").apply { if (!exists()) mkdirs() }
 
     private val authConfigFile: File
         get() = File(cloudRootDir, "auth_session.json")

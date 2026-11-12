@@ -2,9 +2,12 @@ package com.masroofi.app.presentation.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -17,12 +20,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.masroofi.app.data.cloud.CloudBackupMetadata
 import com.masroofi.app.data.cloud.CloudBackupStatus
 import com.masroofi.app.data.cloud.CloudUserAccount
 import com.masroofi.app.domain.model.CurrencyCatalog
+import com.masroofi.app.presentation.theme.EmeraldLightBg
+import com.masroofi.app.presentation.theme.EmeraldPrimary
 import com.masroofi.app.presentation.theme.PrimaryGreen
+import com.masroofi.app.presentation.theme.TextSecondary
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -43,6 +50,8 @@ fun CloudBackupCard(
     onAutoBackupToggle: (Boolean) -> Unit,
     onBackupNowClick: () -> Unit,
     onRestoreClick: () -> Unit,
+    onDeleteAccountClick: (() -> Unit)? = null,
+    onPrivacyPolicyClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -272,6 +281,82 @@ fun CloudBackupCard(
                             Text("استعادة", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
                         }
                     }
+
+                    // خيار حذف الحساب والبيانات السحابية
+                    if (onDeleteAccountClick != null) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onDeleteAccountClick() }
+                                .padding(vertical = 4.dp, horizontal = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteOutline,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Text(
+                                    text = "حذف الحساب والبيانات السحابية",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ChevronLeft,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // رابط سياسة الخصوصية
+            if (onPrivacyPolicyClick != null) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onPrivacyPolicyClick() }
+                        .padding(vertical = 4.dp, horizontal = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Security,
+                            contentDescription = null,
+                            tint = PrimaryGreen,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = "سياسة الخصوصية وأمان البيانات",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = PrimaryGreen,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ChevronLeft,
+                        contentDescription = null,
+                        tint = PrimaryGreen,
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
             }
         }
@@ -573,4 +658,242 @@ private fun formatTimestamp(timestamp: Long?): String {
     } catch (_: Exception) {
         "غير متوفر"
     }
+}
+
+/**
+ * نافذة سياسة الخصوصية الرسمية داخل التطبيق
+ */
+@Composable
+fun PrivacyPolicyDialog(
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(EmeraldLightBg),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Security,
+                        contentDescription = null,
+                        tint = EmeraldPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Text(
+                    text = "سياسة الخصوصية وأمان البيانات",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "يلتزم تطبيق مصروف (Masroof) بأعلى معايير حماية الخصوصية والشفافية وفق المبادئ المعتمدة التالية:",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                PrivacySection(
+                    title = "1. العمل المحلي أولاً (Offline-First):",
+                    content = "يعمل تطبيق مصروف محلياً 100% دون حاجة إلى اتصال بالإنترنت. لا نجمع ولا نرسل أي بيانات مالية (المصروفات، الإيرادات، الميزانيات، أو التصنيفات) إلى أي خوادم افتراضياً. بياناتك محفوظة على ذاكرة هاتفك فقط."
+                )
+
+                PrivacySection(
+                    title = "2. النسخ السحابي الاختياري عبر Google:",
+                    content = "عندما يختار المستخدم تفعيل النسخ السحابي اختيارياً، يتم استخدام Firebase Authentication للتحقق من هوية حساب Google، وخدمة Cloud Firestore لحفظ النسخ بعد ضغطها بنظام GZIP وتشفيرها عبر اتصال HTTPS آمن لاستعادتها عند تغيير الهاتف."
+                )
+
+                PrivacySection(
+                    title = "3. عزل البيانات وانعدام الوصول الخارجي:",
+                    content = "بياناتك السحابية معزولة تماماً بقواعد أمان مشددة، ولا يمكن لأي طرف ثالث أو حتى مطوري التطبيق قراءة بياناتك أو الوصول إليها."
+                )
+
+                PrivacySection(
+                    title = "4. عدم مشاركة البيانات إطلاقاً:",
+                    content = "لا نقوم ببيع أو مشاركة أو تأجير بيانات المستخدمين مع أي شركات إعلانية أو جهات خارجية، والتطبيق خالٍ تماماً من متعقبات الإعلانات."
+                )
+
+                PrivacySection(
+                    title = "5. حذف الحساب والبيانات السحابية:",
+                    content = "يمكنك في أي وقت إيقاف النسخ التلقائي، أو حذف كافة النسخ السحابية وحسابك نهائياً من داخل التطبيق عبر خيار (حذف الحساب والبيانات السحابية) أو عبر صفحة الويب المخصصة لمتجر Google Play."
+                )
+
+                PrivacySection(
+                    title = "6. التواصل والدعم:",
+                    content = "لأي استفسار بشأن الخصوصية، تواصل معنا عبر: support@masroofapp.com"
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PrimaryGreen,
+                    contentColor = Color.White
+                )
+            ) {
+                Text("إغلاق", fontWeight = FontWeight.Bold)
+            }
+        }
+    )
+}
+
+@Composable
+private fun PrivacySection(title: String, content: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = PrimaryGreen
+        )
+        Text(
+            text = content,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            lineHeight = 18.sp
+        )
+    }
+}
+
+/**
+ * نافذة تأكيد حذف الحساب والبيانات السحابية (متطلب Google Play الإلزامي)
+ */
+@Composable
+fun DeleteAccountConfirmationDialog(
+    onDismiss: () -> Unit,
+    onExportLocalFirst: () -> Unit,
+    onConfirmDelete: (wipeLocal: Boolean) -> Unit
+) {
+    var wipeLocalData by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.WarningAmber,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Text(
+                    text = "حذف الحساب والبيانات السحابية",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = "سيتم حذف حسابك السحابي وكافة النسخ الاحتياطية السحابية وأجزائها من خوادم السحابة نهائياً ولا يمكن استرجاعها.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                // زر تصدير نسخة محلية أولاً
+                OutlinedButton(
+                    onClick = onExportLocalFirst,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = null,
+                        tint = PrimaryGreen,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "تصدير نسخة احتياطية محلية أولاً (JSON)",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryGreen
+                    )
+                }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                // خيار الإبقاء على البيانات المحلية أو مسحها أيضاً
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { wipeLocalData = !wipeLocalData }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Checkbox(
+                        checked = wipeLocalData,
+                        onCheckedChange = { wipeLocalData = it },
+                        colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.error)
+                    )
+                    Column {
+                        Text(
+                            text = "مسح البيانات المحلية أيضاً من هذا الهاتف",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (wipeLocalData) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (wipeLocalData)
+                                "تحذير: سيتم تفريغ التطبيق بالكامل ومسح كل السجلات من الهاتف!"
+                            else
+                                "الإبقاء على بياناتك في الهاتف ومتابعة استخدامه محلياً (موصى به).",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirmDelete(wipeLocalData) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = Color.White
+                )
+            ) {
+                Text("تأكيد الحذف النهائي", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("إلغاء")
+            }
+        }
+    )
 }

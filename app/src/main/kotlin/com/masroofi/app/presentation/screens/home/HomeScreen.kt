@@ -566,14 +566,14 @@ private fun PeriodFinancialSummaryCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
                         shape = CircleShape,
-                        color = IncomeGreen.copy(alpha = 0.15f),
+                        color = EmeraldLightBg,
                         modifier = Modifier.size(36.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                                 contentDescription = null,
-                                tint = IncomeGreen,
+                                tint = EmeraldPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -597,18 +597,18 @@ private fun PeriodFinancialSummaryCard(
                 // صافي التدفق
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val isPositive = uiState.periodNetCashflow >= 0L
-                    val color = if (isPositive) IncomeGreen else MaterialTheme.colorScheme.error
+                    val amountTextColor = if (isPositive) IncomeGreen else MaterialTheme.colorScheme.error
 
                     Surface(
                         shape = CircleShape,
-                        color = color.copy(alpha = 0.15f),
+                        color = EmeraldLightBg,
                         modifier = Modifier.size(36.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = if (isPositive) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
                                 contentDescription = null,
-                                tint = color,
+                                tint = EmeraldPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -624,7 +624,7 @@ private fun PeriodFinancialSummaryCard(
                             text = "${if (isPositive) "+" else "-"}${formatNumber(abs(uiState.periodNetCashflow))} $currencySymbol",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
-                            color = color
+                            color = amountTextColor
                         )
                     }
                 }
@@ -823,14 +823,14 @@ private fun FinancialSummaryCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
                         shape = CircleShape,
-                        color = IncomeGreen.copy(alpha = 0.15f),
+                        color = EmeraldLightBg,
                         modifier = Modifier.size(36.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                                 contentDescription = null,
-                                tint = IncomeGreen,
+                                tint = EmeraldPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -855,14 +855,14 @@ private fun FinancialSummaryCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
+                        color = EmeraldLightBg,
                         modifier = Modifier.size(36.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.TrendingDown,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
+                                tint = EmeraldPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -913,14 +913,14 @@ private fun TopCategoriesGrid(topCategories: List<CategoryExpenseSummary>) {
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                            color = EmeraldLightBg,
                             modifier = Modifier.size(36.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = CategoryIconHelper.getIcon(category.iconKey),
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = EmeraldPrimary,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -951,7 +951,7 @@ private fun TopCategoriesGrid(topCategories: List<CategoryExpenseSummary>) {
                         Text(
                             text = "${category.percentage}% من الإجمالي",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = EmeraldPrimary,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -987,20 +987,16 @@ private fun HomeTransactionRowItem(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                val isExpense = transaction.type == TransactionType.EXPENSE
-                val iconTint = if (isExpense) MaterialTheme.colorScheme.error else IncomeGreen
-                val bgTint = if (isExpense) MaterialTheme.colorScheme.error.copy(alpha = 0.12f) else IncomeGreen.copy(alpha = 0.12f)
-
                 Surface(
                     shape = CircleShape,
-                    color = bgTint,
+                    color = EmeraldLightBg,
                     modifier = Modifier.size(40.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = CategoryIconHelper.getIcon(transaction.categoryIconKey ?: "category"),
                             contentDescription = null,
-                            tint = iconTint,
+                            tint = EmeraldPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }

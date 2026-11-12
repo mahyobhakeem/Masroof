@@ -68,6 +68,8 @@ data class SettingsUiState(
     val isCloudRestoreConfirmationOpen: Boolean = false,
     val pendingCloudRestoreMetadata: CloudBackupMetadata? = null,
     val showGoogleSignInDialog: Boolean = false,
+    val isPrivacyPolicyOpen: Boolean = false,
+    val isDeleteAccountDialogOpen: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null
 ) {
@@ -820,6 +822,49 @@ class SettingsViewModel(
                 _uiState.update { it.copy(successMessage = "تمت استعادة كافة بياناتك من السحابة بنجاح تام") }
             } else {
                 _uiState.update { it.copy(errorMessage = "فشلت استعادة النسخة السحابية: ${res.exceptionOrNull()?.message}") }
+            }
+        }
+    }
+
+    // سياسة الخصوصية
+    fun openPrivacyPolicy() {
+        _uiState.update { it.copy(isPrivacyPolicyOpen = true) }
+    }
+
+    fun closePrivacyPolicy() {
+        _uiState.update { it.copy(isPrivacyPolicyOpen = false) }
+    }
+
+    // حذف الحساب والبيانات السحابية
+    fun openDeleteAccountDialog() {
+        _uiState.update { it.copy(isDeleteAccountDialogOpen = true) }
+    }
+
+    fun closeDeleteAccountDialog() {
+        _uiState.update { it.copy(isDeleteAccountDialogOpen = false) }
+    }
+
+    fun deleteAccountAndCloudData(wipeLocalData: Boolean) {
+        val manager = cloudBackupManager ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCloudLoading = true, isDeleteAccountDialogOpen = false) }
+            val res = manager.deleteAccountAndCloudData(wipeLocalData)
+            _uiState.update { it.copy(isCloudLoading = false) }
+            if (res.isSuccess) {
+                _uiState.update {
+                    it.copy(
+                        currentUser = null,
+                        availableCloudBackups = emptyList(),
+                        successMessage = if (wipeLocalData)
+                            "تم حذف الحساب والبيانات السحابية والمحلية بنجاح"
+                        else
+                            "تم حذف الحساب السحابي وكافة النسخ الاحتياطية بنجاح، مع بقاء بياناتك المحلية في الهاتف"
+                    )
+                }
+            } else {
+                _uiState.update {
+                    it.copy(errorMessage = "تعذر حذف الحساب والبيانات السحابية: ${res.exceptionOrNull()?.message}")
+                }
             }
         }
     }

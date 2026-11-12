@@ -29,7 +29,9 @@ import com.masroofi.app.presentation.components.CloudBackupCard
 import com.masroofi.app.presentation.components.CloudRestoreConfirmationDialog
 import com.masroofi.app.presentation.components.CurrencyChangeConfirmationDialog
 import com.masroofi.app.presentation.components.CurrencySelectionSheet
+import com.masroofi.app.presentation.components.DeleteAccountConfirmationDialog
 import com.masroofi.app.presentation.components.GoogleSignInDialog
+import com.masroofi.app.presentation.components.PrivacyPolicyDialog
 import com.masroofi.app.presentation.components.LocalAppCurrency
 import com.masroofi.app.presentation.components.MasroofiExpandableCard
 import com.masroofi.app.presentation.components.MasroofiItemCard
@@ -117,6 +119,11 @@ fun SettingsScreen(
         onAutoBackupToggle = { viewModel.toggleAutoBackup(it) },
         onBackupNowClick = { viewModel.backupToCloudNow() },
         onCloudRestoreClick = { viewModel.requestCloudRestore() },
+        onOpenPrivacyPolicy = { viewModel.openPrivacyPolicy() },
+        onClosePrivacyPolicy = { viewModel.closePrivacyPolicy() },
+        onOpenDeleteAccountDialog = { viewModel.openDeleteAccountDialog() },
+        onCloseDeleteAccountDialog = { viewModel.closeDeleteAccountDialog() },
+        onConfirmDeleteAccount = { wipe -> viewModel.deleteAccountAndCloudData(wipe) },
         modifier = modifier
     )
 
@@ -124,6 +131,20 @@ fun SettingsScreen(
         GoogleSignInDialog(
             onDismiss = { viewModel.dismissGoogleSignInDialog() },
             onConfirmSignIn = { viewModel.signInWithGoogle(it) }
+        )
+    }
+
+    if (uiState.isPrivacyPolicyOpen) {
+        PrivacyPolicyDialog(
+            onDismiss = { viewModel.closePrivacyPolicy() }
+        )
+    }
+
+    if (uiState.isDeleteAccountDialogOpen) {
+        DeleteAccountConfirmationDialog(
+            onDismiss = { viewModel.closeDeleteAccountDialog() },
+            onExportLocalFirst = { viewModel.createBackupLocally(context) },
+            onConfirmDelete = { wipe -> viewModel.deleteAccountAndCloudData(wipe) }
         )
     }
 
@@ -193,6 +214,11 @@ fun SettingsContent(
     onAutoBackupToggle: (Boolean) -> Unit = {},
     onBackupNowClick: () -> Unit = {},
     onCloudRestoreClick: () -> Unit = {},
+    onOpenPrivacyPolicy: () -> Unit = {},
+    onClosePrivacyPolicy: () -> Unit = {},
+    onOpenDeleteAccountDialog: () -> Unit = {},
+    onCloseDeleteAccountDialog: () -> Unit = {},
+    onConfirmDeleteAccount: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -257,23 +283,23 @@ fun SettingsContent(
                     title = "إدارة الميزانية الشهرية",
                     subtitle = budgetText,
                     icon = Icons.Default.AccountBalanceWallet,
-                    iconColor = IncomeGreen,
+                    iconColor = PrimaryGreen,
                     onClick = onOpenBudgetManagement
                 )
             }
 
-            // 3. بطاقة إدارة التصنيفات المالية
+            // 2. بطاقة إدارة التصنيفات المالية
             item {
                 MasroofiItemCard(
                     title = "إدارة التصنيفات المالية",
                     subtitle = "${uiState.allCategories.size} تصنيفاً (المصروفات والإيرادات)",
                     icon = Icons.Default.Category,
-                    iconColor = CategoryFood,
+                    iconColor = PrimaryGreen,
                     onClick = onOpenCategoryManagement
                 )
             }
 
-            // 4. بطاقة تخصيص التطبيق والعملة (قسم قابل للتوسيع)
+            // 3. بطاقة تخصيص التطبيق والعملة (قسم قابل للتوسيع)
             item {
                 val currentCurrency = remember(uiState.selectedCurrencyCode) {
                     CurrencyCatalog.getCurrencyByCode(uiState.selectedCurrencyCode)
@@ -282,7 +308,7 @@ fun SettingsContent(
                 MasroofiExpandableCard(
                     title = "تخصيص التطبيق والعملة",
                     icon = Icons.Default.Tune,
-                    iconColor = CategoryTransport
+                    iconColor = PrimaryGreen
                 ) {
                     // بطاقة اختيار العملة الرئيسية التفاعلية
                     Row(
@@ -393,7 +419,9 @@ fun SettingsContent(
                     onSignOutClick = onCloudSignOutClick,
                     onAutoBackupToggle = onAutoBackupToggle,
                     onBackupNowClick = onBackupNowClick,
-                    onRestoreClick = onCloudRestoreClick
+                    onRestoreClick = onCloudRestoreClick,
+                    onDeleteAccountClick = onOpenDeleteAccountDialog,
+                    onPrivacyPolicyClick = onOpenPrivacyPolicy
                 )
             }
 
@@ -402,7 +430,7 @@ fun SettingsContent(
                 MasroofiExpandableCard(
                     title = "النسخ الاحتياطي وتصدير البيانات",
                     icon = Icons.Default.CloudSync,
-                    iconColor = CategoryTransport
+                    iconColor = PrimaryGreen
                 ) {
                     // أ) إنشاء نسخة احتياطية JSON
                     Row(
@@ -418,13 +446,13 @@ fun SettingsContent(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                                .background(PrimaryGreen.copy(alpha = 0.1f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CloudUpload,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                                tint = PrimaryGreen,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -465,13 +493,13 @@ fun SettingsContent(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(ExpenseRed.copy(alpha = 0.1f)),
+                                .background(PrimaryGreen.copy(alpha = 0.1f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.SettingsBackupRestore,
                                 contentDescription = null,
-                                tint = ExpenseRed,
+                                tint = PrimaryGreen,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -512,13 +540,13 @@ fun SettingsContent(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(IncomeGreen.copy(alpha = 0.1f)),
+                                .background(PrimaryGreen.copy(alpha = 0.1f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.TableChart,
                                 contentDescription = null,
-                                tint = IncomeGreen,
+                                tint = PrimaryGreen,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -568,13 +596,24 @@ fun SettingsContent(
                 }
             }
 
-            // 5. بطاقة حول تطبيق مصروف
+            // 7. بطاقة سياسة الخصوصية
+            item {
+                MasroofiItemCard(
+                    title = "سياسة الخصوصية",
+                    subtitle = "حماية بياناتك، العمل المحلي 100%، والنسخ السحابي الاختياري",
+                    icon = Icons.Default.Security,
+                    iconColor = PrimaryGreen,
+                    onClick = onOpenPrivacyPolicy
+                )
+            }
+
+            // 8. بطاقة حول تطبيق مصروف
             item {
                 MasroofiItemCard(
                     title = "عن تطبيق مصروف",
                     subtitle = "الإصدار 1.1.0 • تطبيق محلي لإدارة المصروفات",
                     icon = Icons.Default.Info,
-                    iconColor = TextSecondary,
+                    iconColor = PrimaryGreen,
                     onClick = onOpenAboutDialog
                 )
             }
