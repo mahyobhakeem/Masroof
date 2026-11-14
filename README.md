@@ -1,5 +1,9 @@
 <div dir="rtl" align="right">
 
+<p align="center">
+  <img src="docs/playstore/feature_graphic_1024x500.png" width="100%" alt="لوحة العرض الترويجية لتطبيق مصروف" />
+</p>
+
 # تطبيق مصروف (<code>Masroof</code>)
 ### الحل المالي الذكي لإدارة النفقات الشخصية وتخطيط الميزانيات الشهرية بالعملات العربية والنسخ السحابي المشفر
 

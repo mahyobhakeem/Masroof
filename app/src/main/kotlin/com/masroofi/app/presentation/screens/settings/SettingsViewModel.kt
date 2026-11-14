@@ -68,6 +68,11 @@ data class SettingsUiState(
     val isCloudRestoreConfirmationOpen: Boolean = false,
     val pendingCloudRestoreMetadata: CloudBackupMetadata? = null,
     val showGoogleSignInDialog: Boolean = false,
+    val showCloudAuthSheet: Boolean = false,
+    val showChangePasswordDialog: Boolean = false,
+    val showCloudCredentialsDialog: Boolean = false,
+    val showCloudBackupFoundPrompt: Boolean = false,
+    val detectedCloudBackup: CloudBackupMetadata? = null,
     val isPrivacyPolicyOpen: Boolean = false,
     val isDeleteAccountDialogOpen: Boolean = false,
     val errorMessage: String? = null,
@@ -721,18 +726,169 @@ class SettingsViewModel(
     // إدارة الحساب والنسخ الاحتياطي السحابي (Cloud Backup)
     // ==========================================
 
+    fun openCloudAuthSheet() {
+        _uiState.update { it.copy(showCloudAuthSheet = true, showGoogleSignInDialog = true) }
+    }
+
+    fun dismissCloudAuthSheet() {
+        _uiState.update { it.copy(showCloudAuthSheet = false, showGoogleSignInDialog = false) }
+    }
+
     fun openGoogleSignInDialog() {
-        _uiState.update { it.copy(showGoogleSignInDialog = true) }
+        openCloudAuthSheet()
     }
 
     fun dismissGoogleSignInDialog() {
-        _uiState.update { it.copy(showGoogleSignInDialog = false) }
+        dismissCloudAuthSheet()
+    }
+
+    fun signUpWithEmail(name: String, email: String, pass: String) {
+        val manager = cloudBackupManager ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCloudLoading = true) }
+            val res = manager.provider.signUpWithEmail(email, pass, name)
+            _uiState.update { it.copy(isCloudLoading = false) }
+            if (res.isSuccess) {
+                val account = res.getOrThrow()
+                _uiState.update {
+                    it.copy(
+                        showCloudAuthSheet = false,
+                        showGoogleSignInDialog = false,
+                        currentUser = account,
+                        successMessage = "تم إنشاء الحساب بنجاح وربط المحفظة بالسحابة (${account.displayName})"
+                    )
+                }
+                refreshAvailableCloudBackups()
+            } else {
+                _uiState.update { it.copy(errorMessage = res.exceptionOrNull()?.message ?: "فشل إنشاء الحساب السحابي") }
+            }
+        }
+    }
+
+    fun signInWithEmail(email: String, pass: String) {
+        val manager = cloudBackupManager ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCloudLoading = true) }
+            val res = manager.provider.signInWithEmail(email, pass)
+            _uiState.update { it.copy(isCloudLoading = false) }
+            if (res.isSuccess) {
+                val account = res.getOrThrow()
+                _uiState.update {
+                    it.copy(
+                        showCloudAuthSheet = false,
+                        showGoogleSignInDialog = false,
+                        currentUser = account,
+                        successMessage = "تم تسجيل الدخول بنجاح بحساب ${account.email}"
+                    )
+                }
+                // جلب النسخ المتوفرة والتحقق من وجود نسخة للاستعادة التلقائية
+                val backupsRes = manager.provider.getAvailableBackups()
+                val backups = backupsRes.getOrDefault(emptyList())
+                _uiState.update { it.copy(availableCloudBackups = backups) }
+
+                // فحص إذا كانت قاعدة البيانات خالية
+                val localTxCount = transactionRepository.getAllTransactions().first().size
+                if (backups.isNotEmpty() && localTxCount == 0) {
+                    val latestBackup = backups.first()
+                    _uiState.update {
+                        it.copy(
+                            showCloudBackupFoundPrompt = true,
+                            detectedCloudBackup = latestBackup
+                        )
+                    }
+                }
+            } else {
+                _uiState.update { it.copy(errorMessage = res.exceptionOrNull()?.message ?: "فشل تسجيل الدخول بالسحابة") }
+            }
+        }
+    }
+
+    fun sendPasswordResetEmail(email: String) {
+        val manager = cloudBackupManager ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCloudLoading = true) }
+            val res = manager.provider.sendPasswordResetEmail(email)
+            _uiState.update { it.copy(isCloudLoading = false) }
+            if (res.isSuccess) {
+                _uiState.update { it.copy(successMessage = "تم إرسال رابط استعادة كلمة المرور إلى $email بنجاح") }
+            } else {
+                _uiState.update { it.copy(errorMessage = res.exceptionOrNull()?.message ?: "فشل إرسال رابط الاستعادة") }
+            }
+        }
+    }
+
+    fun openChangePasswordDialog() {
+        _uiState.update { it.copy(showChangePasswordDialog = true) }
+    }
+
+    fun dismissChangePasswordDialog() {
+        _uiState.update { it.copy(showChangePasswordDialog = false) }
+    }
+
+    fun changePassword(newPassword: String) {
+        val manager = cloudBackupManager ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isCloudLoading = true) }
+            val res = manager.provider.changePassword(newPassword)
+            _uiState.update { it.copy(isCloudLoading = false) }
+            if (res.isSuccess) {
+                _uiState.update {
+                    it.copy(
+                        showChangePasswordDialog = false,
+                        successMessage = "تم تغيير كلمة المرور بنجاح"
+                    )
+                }
+            } else {
+                _uiState.update { it.copy(errorMessage = res.exceptionOrNull()?.message ?: "فشل تغيير كلمة المرور") }
+            }
+        }
+    }
+
+    fun openCloudCredentialsDialog() {
+        _uiState.update { it.copy(showCloudCredentialsDialog = true) }
+    }
+
+    fun dismissCloudCredentialsDialog() {
+        _uiState.update { it.copy(showCloudCredentialsDialog = false) }
+    }
+
+    fun saveCloudCredentials(apiKey: String, projectId: String) {
+        viewModelScope.launch {
+            preferencesManager.setCloudCredentials(apiKey, projectId)
+            _uiState.update {
+                it.copy(
+                    showCloudCredentialsDialog = false,
+                    successMessage = "تم حفظ إعدادات السحابة بنجاح"
+                )
+            }
+        }
+    }
+
+    fun dismissCloudBackupFoundPrompt() {
+        _uiState.update {
+            it.copy(
+                showCloudBackupFoundPrompt = false,
+                detectedCloudBackup = null
+            )
+        }
+    }
+
+    fun confirmAutoDetectedRestore() {
+        val detected = _uiState.value.detectedCloudBackup ?: return
+        _uiState.update {
+            it.copy(
+                showCloudBackupFoundPrompt = false,
+                detectedCloudBackup = null,
+                pendingCloudRestoreMetadata = detected
+            )
+        }
+        confirmCloudRestore()
     }
 
     fun signInWithGoogle(account: CloudUserAccount) {
         val manager = cloudBackupManager ?: return
         viewModelScope.launch {
-            _uiState.update { it.copy(isCloudLoading = true, showGoogleSignInDialog = false) }
+            _uiState.update { it.copy(isCloudLoading = true, showGoogleSignInDialog = false, showCloudAuthSheet = false) }
             val res = manager.provider.signInWithGoogle(account)
             _uiState.update { it.copy(isCloudLoading = false) }
             if (res.isSuccess) {

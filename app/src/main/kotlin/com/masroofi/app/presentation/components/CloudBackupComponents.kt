@@ -56,6 +56,8 @@ fun CloudBackupCard(
     onRestoreClick: () -> Unit,
     onDeleteAccountClick: (() -> Unit)? = null,
     onPrivacyPolicyClick: (() -> Unit)? = null,
+    onChangePasswordClick: (() -> Unit)? = null,
+    onOpenCloudConfigClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     isExpanded: Boolean? = null,
     onExpandedChange: ((Boolean) -> Unit)? = null
@@ -183,7 +185,7 @@ fun CloudBackupCard(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(
-                                text = "اربط حساب Google لحفظ نسخة احتياطية سحابية واستعادة بياناتك بأمان عند تغيير أو فقدان هاتفك.",
+                                text = "أنشئ حسابك السحابي أو سجّل الدخول لحفظ نسخة احتياطية مشفرة واستعادة بيانات محفظتك بأمان عند تغيير هاتفك.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
@@ -205,7 +207,7 @@ fun CloudBackupCard(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "تسجيل الدخول باستخدام Google",
+                                    text = "إنشاء حساب أو تسجيل الدخول",
                                     fontWeight = FontWeight.Bold
                                 )
                             }
@@ -333,6 +335,44 @@ fun CloudBackupCard(
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text("استعادة", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            // خيار تغيير كلمة المرور
+                            if (onChangePasswordClick != null) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { onChangePasswordClick() }
+                                        .padding(vertical = 4.dp, horizontal = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.LockReset,
+                                            contentDescription = null,
+                                            tint = PrimaryGreen,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = "تغيير كلمة المرور",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.ChevronLeft,
+                                        contentDescription = null,
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
                             }
 
@@ -1162,3 +1202,86 @@ fun DeleteAccountConfirmationDialog(
         }
     )
 }
+
+/**
+ * نافذة الاكتشاف التلقائي للنسخة السحابية بعد تسجيل الدخول على هاتف جديد
+ */
+@Composable
+fun CloudBackupFoundAutoPromptDialog(
+    metadata: CloudBackupMetadata,
+    onDismiss: () -> Unit,
+    onConfirmRestore: () -> Unit
+) {
+    val currency = CurrencyCatalog.getCurrencyByCode(metadata.currencyCode)
+    val formattedDate = formatTimestamp(metadata.createdAt)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.CloudDone,
+                    contentDescription = null,
+                    tint = PrimaryGreen,
+                    modifier = Modifier.size(28.dp)
+                )
+                Text(
+                    text = "تم العثور على نسخة احتياطية سحابية",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "تم العثور على نسخة احتياطية سحابية متوفرة لحسابك، هل ترغب في استعادة بياناتك الآن؟",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        DetailRow("تاريخ النسخة:", formattedDate)
+                        DetailRow("العملة:", "${currency.flagEmoji} ${currency.nameArabic}")
+                        DetailRow("العمليات المسجلة:", "${metadata.transactionCount} عملية")
+                        DetailRow("التصنيفات والميزانية:", "${metadata.categoryCount} تصنيف، ${metadata.budgetCount} ميزانية")
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirmRestore,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PrimaryGreen,
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Icon(Icons.Filled.CloudDownload, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("استعادة الآن", fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("تخطي الآن", color = TextSecondary)
+            }
+        }
+    )
+}
+

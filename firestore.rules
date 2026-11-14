@@ -8,9 +8,9 @@ rules_version = '2';
 //
 // المبادئ الأساسية:
 // 1. الحرمان الافتراضي (Default Deny): إغلاق كامل لكافة مسارات قاعدة البيانات تلقائياً.
-// 2. التحقق من الهوية (Authentication): اشتراط تسجيل الدخول لجميع العمليات.
+// 2. التحقق من الهوية (Authentication): اشتراط تسجيل الدخول لجميع العمليات (request.auth != null).
 // 3. العزل التام للمستخدمين (Zero-Trust User Isolation): لا يمكن لأي مستخدم الوصول
-//    إلى بيانات مستخدم آخر، ويتم التحقق من تطابق معرف المستخدم في كل مسار ومستند.
+//    إلى بيانات مستخدم آخر نهائياً (request.auth.uid == userId).
 // 4. نمط دالة التحقق الشامل (Validator Function Pattern): التحقق الصارم من الحقول
 //    والأنواع والحدود القصوى للحجم في عمليتي الإنشاء (Create) والتعديل (Update).
 // 5. حماية الحقول غير القابلة للتغيير (Immutability): منع تعديل معرّفات المالك وتواريخ الإنشاء.
@@ -52,10 +52,10 @@ rules_version = '2';
 //      * note: string (اختياري، حتى 500 حرف)
 //      * deviceInfo: string (اختياري، حتى 200 حرف)
 //
-// 3. المجموعة الفرعية للأجزاء: /users/{userId}/backups/{backupId}/chunks/{chunkIndex}
+// 3. المجموعة الفرعية للأجزاء: /users/{userId}/backups/{backupId}/chunks/{chunkId}
 //    - أجزاء الحمولة المضغوطة (Payload Chunks)
 //    - الحقول:
-//      * chunkIndex: int أو string (إلزامي، فهرس الجزء >= 0)
+//      * chunkId / chunkIndex: int أو string (إلزامي، معرّف أو فهرس الجزء)
 //      * backupId: string (إلزامي، 1-100 حرف، يطابق معرف النسخة)
 //      * userId: string (اختياري، يطابق معرف المستخدم)
 //      * data: string (إلزامي، نص مشفر/مضغوط Base64 أو JSON، بحد أقصى 900KB)
@@ -209,13 +209,18 @@ service cloud.firestore {
     // ========================================================================
 
     function isValidChunk(data) {
-      let allowedFields = ['chunkIndex', 'backupId', 'userId', 'data', 'size', 'totalChunks', 'checksum', 'createdAt'];
-      let requiredFields = ['chunkIndex', 'backupId', 'data'];
+      let allowedFields = ['chunkId', 'chunkIndex', 'backupId', 'userId', 'data', 'size', 'totalChunks', 'checksum', 'createdAt'];
+      let requiredFields = ['backupId', 'data'];
 
       return hasOnlyAllowedFields(allowedFields) &&
              hasRequiredFields(requiredFields) &&
-             // التحقق من فهرس الجزء (يقبل رقم صحيح أو نص معرّف)
-             ((data.chunkIndex is int && data.chunkIndex >= 0 && data.chunkIndex <= 5000) ||
+             // التحقق من وجود معرف أو فهرس الجزء (سواء كـ chunkId أو chunkIndex)
+             (('chunkId' in data) || ('chunkIndex' in data)) &&
+             (!('chunkId' in data) ||
+              (data.chunkId is string && data.chunkId.size() >= 1 && data.chunkId.size() <= 100) ||
+              (data.chunkId is int && data.chunkId >= 0 && data.chunkId <= 5000)) &&
+             (!('chunkIndex' in data) ||
+              (data.chunkIndex is int && data.chunkIndex >= 0 && data.chunkIndex <= 5000) ||
               (data.chunkIndex is string && data.chunkIndex.size() >= 1 && data.chunkIndex.size() <= 20)) &&
              isValidString(data.backupId, 1, 100) &&
              // حماية قصوى من استنزاف الموارد (DoS): بيانات الجزء لا تتعدى 900KB
@@ -227,15 +232,16 @@ service cloud.firestore {
              (!('userId' in data) || (data.userId is string && data.userId == request.auth.uid));
     }
 
-    function isValidChunkCreate(userId, backupId, chunkIndex) {
+    function isValidChunkCreate(userId, backupId, chunkId) {
       return isValidChunk(request.resource.data) &&
              request.resource.data.backupId == backupId &&
+             (!('chunkId' in request.resource.data) || request.resource.data.chunkId == chunkId || (chunkId is string && request.resource.data.chunkId is int)) &&
              (!('userId' in request.resource.data) || request.resource.data.userId == userId);
     }
 
-    function isValidChunkUpdate(userId, backupId, chunkIndex) {
+    function isValidChunkUpdate(userId, backupId, chunkId) {
       return isValidChunk(request.resource.data) &&
-             areImmutableFieldsUnchanged(['backupId', 'userId', 'chunkIndex']) &&
+             areImmutableFieldsUnchanged(['backupId', 'userId', 'chunkId', 'chunkIndex']) &&
              request.resource.data.backupId == backupId &&
              (!('userId' in request.resource.data) || request.resource.data.userId == userId);
     }
@@ -255,7 +261,7 @@ service cloud.firestore {
       // مسار النسخ الاحتياطية: /users/{userId}/backups/{backupId}
       // ----------------------------------------------------------------------
       match /backups/{backupId} {
-        // القراءة: للمالك فقط
+        // القراءة: للمالك فقط (request.auth != null && request.auth.uid == userId)
         allow read: if isOwner(userId);
 
         // الإنشاء: للمالك فقط مع التحقق الشامل من بنية البيانات
@@ -268,17 +274,17 @@ service cloud.firestore {
         allow delete: if isOwner(userId);
 
         // --------------------------------------------------------------------
-        // مسار أجزاء النسخة المضغوطة: /users/{userId}/backups/{backupId}/chunks/{chunkIndex}
+        // مسار أجزاء النسخة المضغوطة: /users/{userId}/backups/{backupId}/chunks/{chunkId}
         // --------------------------------------------------------------------
-        match /chunks/{chunkIndex} {
-          // القراءة: للمالك فقط
+        match /chunks/{chunkId} {
+          // القراءة: للمالك فقط (request.auth != null && request.auth.uid == userId)
           allow read: if isOwner(userId);
 
           // الإنشاء: للمالك فقط مع التحقق من الحجم وسلامة الجزء
-          allow create: if isOwner(userId) && isValidChunkCreate(userId, backupId, chunkIndex);
+          allow create: if isOwner(userId) && isValidChunkCreate(userId, backupId, chunkId);
 
           // التعديل: للمالك فقط مع التحقق من سلامة الجزء وعدم تغيير المعرفات
-          allow update: if isOwner(userId) && isValidChunkUpdate(userId, backupId, chunkIndex);
+          allow update: if isOwner(userId) && isValidChunkUpdate(userId, backupId, chunkId);
 
           // الحذف: للمالك فقط
           allow delete: if isOwner(userId);

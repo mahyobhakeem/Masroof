@@ -33,6 +33,31 @@ interface CloudBackupProvider {
     suspend fun signInWithGoogle(account: CloudUserAccount): Result<CloudUserAccount>
 
     /**
+     * إنشاء حساب جديد بالبريد الإلكتروني وكلمة المرور
+     */
+    suspend fun signUpWithEmail(email: String, password: String, displayName: String): Result<CloudUserAccount>
+
+    /**
+     * تسجيل الدخول بالبريد الإلكتروني وكلمة المرور
+     */
+    suspend fun signInWithEmail(email: String, password: String): Result<CloudUserAccount>
+
+    /**
+     * إرسال رابط إعادة تعيين كلمة المرور إلى البريد الإلكتروني
+     */
+    suspend fun sendPasswordResetEmail(email: String): Result<Unit>
+
+    /**
+     * تغيير كلمة المرور للمستخدم المسجل حالياً
+     */
+    suspend fun changePassword(newPassword: String): Result<Unit>
+
+    /**
+     * حذف الحساب من خادم المصادقة السحابي نهائياً
+     */
+    suspend fun deleteAccount(): Result<Unit>
+
+    /**
      * تسجيل الخروج من السحابة
      */
     suspend fun signOut(): Result<Unit>

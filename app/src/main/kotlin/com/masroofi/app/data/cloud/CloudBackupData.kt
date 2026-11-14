@@ -56,5 +56,8 @@ data class CloudUserAccount(
     val userId: String,
     val email: String,
     val displayName: String,
-    val photoUrl: String? = null
+    val photoUrl: String? = null,
+    val idToken: String? = null,
+    val refreshToken: String? = null,
+    val tokenExpiryTimestamp: Long? = null
 )

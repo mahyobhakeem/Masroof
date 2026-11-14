@@ -7,6 +7,7 @@ import com.masroofi.app.data.backup.BackupRestoreManager
 import com.masroofi.app.data.cloud.CloudBackupManager
 import com.masroofi.app.data.cloud.CloudBackupProvider
 import com.masroofi.app.data.cloud.CloudBackupWorker
+import com.masroofi.app.data.cloud.FirebaseCloudBackupProvider
 import com.masroofi.app.data.cloud.PersistentCloudBackupProvider
 import com.masroofi.app.data.database.MasroofiDatabase
 import com.masroofi.app.data.preferences.PreferencesManager
@@ -52,7 +53,7 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
     }
 
     override val cloudBackupProvider: CloudBackupProvider by lazy {
-        PersistentCloudBackupProvider(context, preferencesManager)
+        FirebaseCloudBackupProvider(context, preferencesManager)
     }
 
     override val cloudBackupManager: CloudBackupManager by lazy {

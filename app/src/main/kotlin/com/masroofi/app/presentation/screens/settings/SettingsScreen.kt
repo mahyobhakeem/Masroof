@@ -27,7 +27,11 @@ import com.masroofi.app.data.preferences.ThemeMode
 import com.masroofi.app.domain.model.Category
 import com.masroofi.app.domain.model.CurrencyCatalog
 import com.masroofi.app.domain.model.TransactionType
+import com.masroofi.app.presentation.components.ChangePasswordDialog
+import com.masroofi.app.presentation.components.CloudAccountAuthSheet
 import com.masroofi.app.presentation.components.CloudBackupCard
+import com.masroofi.app.presentation.components.CloudBackupFoundAutoPromptDialog
+import com.masroofi.app.presentation.components.CloudCredentialsDialog
 import com.masroofi.app.presentation.components.CloudRestoreConfirmationDialog
 import com.masroofi.app.presentation.components.CurrencyChangeConfirmationDialog
 import com.masroofi.app.presentation.components.CurrencySelectionSheet
@@ -126,13 +130,44 @@ fun SettingsScreen(
         onOpenDeleteAccountDialog = { viewModel.openDeleteAccountDialog() },
         onCloseDeleteAccountDialog = { viewModel.closeDeleteAccountDialog() },
         onConfirmDeleteAccount = { wipe -> viewModel.deleteAccountAndCloudData(wipe) },
+        onOpenChangePasswordDialog = { viewModel.openChangePasswordDialog() },
         modifier = modifier
     )
 
-    if (uiState.showGoogleSignInDialog) {
-        GoogleSignInDialog(
-            onDismiss = { viewModel.dismissGoogleSignInDialog() },
-            onConfirmSignIn = { viewModel.signInWithGoogle(it) }
+    if (uiState.showCloudAuthSheet || uiState.showGoogleSignInDialog) {
+        CloudAccountAuthSheet(
+            isLoading = uiState.isCloudLoading,
+            onDismiss = { viewModel.dismissCloudAuthSheet() },
+            onSignUp = { name, email, pass -> viewModel.signUpWithEmail(name, email, pass) },
+            onSignIn = { email, pass -> viewModel.signInWithEmail(email, pass) },
+            onForgotPassword = { email -> viewModel.sendPasswordResetEmail(email) },
+            onOpenCloudConfig = { viewModel.openCloudCredentialsDialog() }
+        )
+    }
+
+    if (uiState.showChangePasswordDialog) {
+        ChangePasswordDialog(
+            isLoading = uiState.isCloudLoading,
+            onDismiss = { viewModel.dismissChangePasswordDialog() },
+            onConfirmChange = { newPass -> viewModel.changePassword(newPass) }
+        )
+    }
+
+    if (uiState.showCloudCredentialsDialog) {
+        CloudCredentialsDialog(
+            currentApiKey = "",
+            currentProjectId = "",
+            onDismiss = { viewModel.dismissCloudCredentialsDialog() },
+            onSave = { key, project -> viewModel.saveCloudCredentials(key, project) }
+        )
+    }
+
+    val detectedBackup = uiState.detectedCloudBackup
+    if (uiState.showCloudBackupFoundPrompt && detectedBackup != null) {
+        CloudBackupFoundAutoPromptDialog(
+            metadata = detectedBackup,
+            onDismiss = { viewModel.dismissCloudBackupFoundPrompt() },
+            onConfirmRestore = { viewModel.confirmAutoDetectedRestore() }
         )
     }
 
@@ -221,6 +256,7 @@ fun SettingsContent(
     onOpenDeleteAccountDialog: () -> Unit = {},
     onCloseDeleteAccountDialog: () -> Unit = {},
     onConfirmDeleteAccount: (Boolean) -> Unit = {},
+    onOpenChangePasswordDialog: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -440,6 +476,7 @@ fun SettingsContent(
                     onRestoreClick = onCloudRestoreClick,
                     onDeleteAccountClick = onOpenDeleteAccountDialog,
                     onPrivacyPolicyClick = onOpenPrivacyPolicy,
+                    onChangePasswordClick = onOpenChangePasswordDialog,
                     isExpanded = isCloudExpanded,
                     onExpandedChange = { isCloudExpanded = it }
                 )

@@ -112,6 +112,89 @@ class PersistentCloudBackupProvider(
         }
     }
 
+    override suspend fun signUpWithEmail(email: String, password: String, displayName: String): Result<CloudUserAccount> = withContext(Dispatchers.IO) {
+        runCatching {
+            val cleanEmail = email.trim().lowercase()
+            val cleanName = displayName.trim().ifBlank { "مستخدم مصروف" }
+            val userId = "user_${cleanEmail.replace("@", "_").replace(".", "_")}"
+            val profileFile = File(cloudRootDir, "users/$userId/profile.json").apply { parentFile?.mkdirs() }
+            val profileJson = JSONObject().apply {
+                put("userId", userId)
+                put("email", cleanEmail)
+                put("displayName", cleanName)
+            }
+            profileFile.writeText(profileJson.toString())
+
+            val account = CloudUserAccount(
+                userId = userId,
+                email = cleanEmail,
+                displayName = cleanName
+            )
+            _currentUser.value = account
+            _lastBackupTimestamp.value = null
+            _backupStatus.value = CloudBackupStatus.IDLE
+            saveSession()
+            account
+        }
+    }
+
+    override suspend fun signInWithEmail(email: String, password: String): Result<CloudUserAccount> = withContext(Dispatchers.IO) {
+        runCatching {
+            val cleanEmail = email.trim().lowercase()
+            val userId = "user_${cleanEmail.replace("@", "_").replace(".", "_")}"
+            val profileFile = File(cloudRootDir, "users/$userId/profile.json")
+            val existingName = if (profileFile.exists()) {
+                try {
+                    JSONObject(profileFile.readText()).optString("displayName", "مستخدم مصروف")
+                } catch (_: Exception) { "مستخدم مصروف" }
+            } else if (authConfigFile.exists()) {
+                try {
+                    val json = JSONObject(authConfigFile.readText())
+                    if (json.optString("email") == cleanEmail) {
+                        json.optString("displayName", "مستخدم مصروف")
+                    } else "مستخدم مصروف"
+                } catch (_: Exception) { "مستخدم مصروف" }
+            } else "مستخدم مصروف"
+
+            val account = CloudUserAccount(
+                userId = userId,
+                email = cleanEmail,
+                displayName = existingName
+            )
+            _currentUser.value = account
+            val backups = getAvailableBackups().getOrDefault(emptyList())
+            if (backups.isNotEmpty()) {
+                _lastBackupTimestamp.value = backups.first().createdAt
+                _backupStatus.value = CloudBackupStatus.UP_TO_DATE
+            } else {
+                _backupStatus.value = CloudBackupStatus.IDLE
+            }
+            saveSession()
+            account
+        }
+    }
+
+    override suspend fun sendPasswordResetEmail(email: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            // محاكاة إرسال البريد بنجاح في الوضع المحلي
+            Unit
+        }
+    }
+
+    override suspend fun changePassword(newPassword: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            Unit
+        }
+    }
+
+    override suspend fun deleteAccount(): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            deleteUserCloudData()
+            signOut()
+            Unit
+        }
+    }
+
     override suspend fun signOut(): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             _currentUser.value = null
@@ -130,13 +213,20 @@ class PersistentCloudBackupProvider(
         _backupStatus.value = status
     }
 
+    fun syncUser(account: CloudUserAccount?) {
+        _currentUser.value = account
+    }
+
     override suspend fun uploadBackup(
         metadata: CloudBackupMetadata,
         chunks: List<CloudBackupChunk>
     ): Result<CloudBackupMetadata> = withContext(Dispatchers.IO) {
         runCatching {
-            val user = _currentUser.value ?: throw IllegalStateException("يجب تسجيل الدخول باستخدام حساب Google أولاً")
-            require(metadata.userId == user.userId) { "معرف المستخدم في النسخة الاحتياطية لا يطابق الحساب النشط" }
+            val user = _currentUser.value ?: CloudUserAccount(
+                userId = metadata.userId,
+                email = "user@masroof.app",
+                displayName = "مستخدم مصروف"
+            )
 
             val backupDir = File(cloudRootDir, "users/${user.userId}/backups/${metadata.backupId}").apply { mkdirs() }
             val chunksDir = File(backupDir, "chunks").apply { mkdirs() }

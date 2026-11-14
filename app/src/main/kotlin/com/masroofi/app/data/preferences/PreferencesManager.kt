@@ -37,6 +37,7 @@ interface UserPreferences {
     suspend fun setDarkMode(isDark: Boolean)
     suspend fun setSelectedCurrencyCode(code: String)
     suspend fun setHasSelectedCurrency(hasSelected: Boolean)
+    suspend fun setCloudCredentials(apiKey: String, projectId: String)
 }
 
 /**
@@ -50,6 +51,29 @@ open class PreferencesManager(private val context: Context) : UserPreferences {
         val IS_DARK_MODE = booleanPreferencesKey("is_dark_mode")
         val SELECTED_CURRENCY_CODE = stringPreferencesKey("selected_currency_code")
         val HAS_SELECTED_CURRENCY = booleanPreferencesKey("has_selected_currency")
+        val CLOUD_API_KEY = stringPreferencesKey("cloud_api_key")
+        val CLOUD_PROJECT_ID = stringPreferencesKey("cloud_project_id")
+    }
+
+    /**
+     * تدفق مفتاح واجهة برمجة تطبيقات السحابة (Firebase Web API Key)
+     */
+    val cloudApiKey: Flow<String?> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[PreferencesKeys.CLOUD_API_KEY] }
+
+    /**
+     * تدفق معرّف المشروع السحابي (Firebase Project ID)
+     */
+    val cloudProjectId: Flow<String?> = context.dataStore.data
+        .catch { if (it is IOException) emit(emptyPreferences()) else throw it }
+        .map { it[PreferencesKeys.CLOUD_PROJECT_ID] }
+
+    override suspend fun setCloudCredentials(apiKey: String, projectId: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.CLOUD_API_KEY] = apiKey.trim()
+            preferences[PreferencesKeys.CLOUD_PROJECT_ID] = projectId.trim()
+        }
     }
 
     /**

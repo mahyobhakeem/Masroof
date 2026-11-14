@@ -450,6 +450,10 @@ class FakePreferencesManager : UserPreferences {
     override suspend fun setHasSelectedCurrency(hasSelected: Boolean) {
         _hasSelectedCurrencyFlow.value = hasSelected
     }
+
+    override suspend fun setCloudCredentials(apiKey: String, projectId: String) {
+        // لا حاجة لعمليات إضافية في بيئة الاختبار
+    }
 }
 
 class FakeSettingsCategoryRepo(
