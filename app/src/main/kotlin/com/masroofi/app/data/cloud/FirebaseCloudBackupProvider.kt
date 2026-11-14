@@ -22,7 +22,7 @@ class FirebaseCloudBackupProvider(
     private val context: Context? = null,
     private val preferencesManager: PreferencesManager? = null,
     private val externalScope: CoroutineScope = CoroutineScope(Dispatchers.IO),
-    cloudRootDirOverride: File? = null
+    private val cloudRootDirOverride: File? = null
 ) : CloudBackupProvider {
 
     private val localFallbackProvider: PersistentCloudBackupProvider = PersistentCloudBackupProvider(
@@ -65,6 +65,7 @@ class FirebaseCloudBackupProvider(
     }
 
     private suspend fun isRealCloudConfigured(): Boolean {
+        if (cloudRootDirOverride != null) return false
         val key = getActiveApiKey()
         val project = getActiveProjectId()
         return CloudConfig.isConfigured(key, project)

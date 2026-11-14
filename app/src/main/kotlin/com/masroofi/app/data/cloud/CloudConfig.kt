@@ -20,13 +20,13 @@ object CloudConfig {
      * مفتاح الويب لخدمات Firebase (Web API Key)
      * يمكن تعيينه هنا مباشرة أو تخصيصه لاحقاً من واجهة الإعدادات
      */
-    const val DEFAULT_FIREBASE_API_KEY: String = ""
+    const val DEFAULT_FIREBASE_API_KEY: String = "AIzaSyAXCfSeu46u_pnx9844xes96Ie3TIFIdZA"
 
     /**
      * معرّف مشروع Firebase السحابي (Project ID)
      * مثال: masroof-app-cloud
      */
-    const val DEFAULT_FIREBASE_PROJECT_ID: String = ""
+    const val DEFAULT_FIREBASE_PROJECT_ID: String = "masroof-bf45e"
 
     /**
      * الرابط الأساسي لخدمة مصادقة الهوية (Firebase Identity Toolkit REST API)

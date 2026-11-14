@@ -36,16 +36,21 @@ object FirebaseFirestoreClient {
                 put("userId", stringField(metadata.userId))
                 put("appName", stringField(metadata.appName))
                 put("appVersion", stringField(metadata.appVersion))
+                put("backupFormatVersion", integerField(metadata.backupSchemaVersion.toLong()))
                 put("backupSchemaVersion", integerField(metadata.backupSchemaVersion.toLong()))
                 put("databaseSchemaVersion", integerField(metadata.databaseSchemaVersion.toLong()))
                 put("createdAt", integerField(metadata.createdAt))
+                put("currency", stringField(metadata.currencyCode))
+                put("currencyCode", stringField(metadata.currencyCode))
+                put("checksum", stringField(metadata.sha256Checksum))
                 put("sha256Checksum", stringField(metadata.sha256Checksum))
                 put("totalChunks", integerField(metadata.totalChunks.toLong()))
+                put("totalSize", integerField(metadata.totalCompressedBytes))
                 put("totalCompressedBytes", integerField(metadata.totalCompressedBytes))
                 put("transactionCount", integerField(metadata.transactionCount.toLong()))
                 put("categoryCount", integerField(metadata.categoryCount.toLong()))
                 put("budgetCount", integerField(metadata.budgetCount.toLong()))
-                put("currencyCode", stringField(metadata.currencyCode))
+                put("deviceInfo", stringField(metadata.deviceName))
                 put("deviceName", stringField(metadata.deviceName))
                 put("status", stringField(metadata.status))
             }
@@ -73,9 +78,12 @@ object FirebaseFirestoreClient {
 
             val fields = JSONObject().apply {
                 put("chunkIndex", integerField(chunk.chunkIndex.toLong()))
+                put("chunkId", stringField(chunk.chunkIndex.toString()))
                 put("backupId", stringField(chunk.backupId))
                 put("userId", stringField(chunk.userId))
+                put("data", stringField(chunk.dataBase64))
                 put("dataBase64", stringField(chunk.dataBase64))
+                put("size", integerField(chunk.bytesCount.toLong()))
                 put("bytesCount", integerField(chunk.bytesCount.toLong()))
                 put("checksum", stringField(chunk.checksum))
             }
@@ -157,12 +165,15 @@ object FirebaseFirestoreClient {
                 val doc = documents.getJSONObject(i)
                 val fields = doc.optJSONObject("fields") ?: continue
 
+                val chunkData = if (fields.has("dataBase64")) extractString(fields, "dataBase64") else extractString(fields, "data")
+                val chunkBytes = if (fields.has("bytesCount")) extractLong(fields, "bytesCount", 0L) else extractLong(fields, "size", 0L)
+
                 val chunk = CloudBackupChunk(
                     chunkIndex = extractLong(fields, "chunkIndex", 0L).toInt(),
                     backupId = extractString(fields, "backupId", backupId),
                     userId = extractString(fields, "userId", userId),
-                    dataBase64 = extractString(fields, "dataBase64"),
-                    bytesCount = extractLong(fields, "bytesCount", 0L).toInt(),
+                    dataBase64 = chunkData,
+                    bytesCount = chunkBytes.toInt(),
                     checksum = extractString(fields, "checksum")
                 )
                 chunkList.add(chunk)
