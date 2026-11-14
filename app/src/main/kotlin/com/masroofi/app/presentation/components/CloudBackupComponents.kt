@@ -56,10 +56,13 @@ fun CloudBackupCard(
     onRestoreClick: () -> Unit,
     onDeleteAccountClick: (() -> Unit)? = null,
     onPrivacyPolicyClick: (() -> Unit)? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isExpanded: Boolean? = null,
+    onExpandedChange: ((Boolean) -> Unit)? = null
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
-    val rotationAngle by animateFloatAsState(targetValue = if (isExpanded) -90f else 0f, label = "cloud_chevron")
+    var localExpanded by remember { mutableStateOf(false) }
+    val expandedState = isExpanded ?: localExpanded
+    val rotationAngle by animateFloatAsState(targetValue = if (expandedState) -90f else 0f, label = "cloud_chevron")
 
     // ملخص الحالة التلقائي بجانب العنوان
     val statusSummary = remember(currentUser, backupStatus, lastBackupTime) {
@@ -95,7 +98,13 @@ fun CloudBackupCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .clickable { isExpanded = !isExpanded }
+                    .clickable {
+                        if (onExpandedChange != null) {
+                            onExpandedChange(!expandedState)
+                        } else {
+                            localExpanded = !localExpanded
+                        }
+                    }
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -148,7 +157,7 @@ fun CloudBackupCard(
                     }
                     Icon(
                         imageVector = Icons.Default.ChevronLeft,
-                        contentDescription = if (isExpanded) "طي" else "توسيع",
+                        contentDescription = if (expandedState) "طي" else "توسيع",
                         tint = TextSecondary,
                         modifier = Modifier
                             .size(20.dp)
@@ -157,7 +166,7 @@ fun CloudBackupCard(
                 }
             }
 
-            AnimatedVisibility(visible = isExpanded) {
+            AnimatedVisibility(visible = expandedState) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()

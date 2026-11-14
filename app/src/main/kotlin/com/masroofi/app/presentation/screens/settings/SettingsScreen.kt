@@ -1,6 +1,7 @@
 package com.masroofi.app.presentation.screens.settings
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -225,6 +226,20 @@ fun SettingsContent(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
+    // إدارة حالة الأقسام القابلة للتوسيع للتحكم في زر الرجوع خطوة بخطوة
+    var isCustomizationExpanded by remember { mutableStateOf(false) }
+    var isCloudExpanded by remember { mutableStateOf(false) }
+    var isBackupExpanded by remember { mutableStateOf(false) }
+
+    val anySectionExpanded = isCustomizationExpanded || isCloudExpanded || isBackupExpanded
+
+    BackHandler(enabled = anySectionExpanded) {
+        // إغلاق أي قسم مفتوح خطوة للخلف والبقاء داخل شاشة الإعدادات
+        isCustomizationExpanded = false
+        isCloudExpanded = false
+        isBackupExpanded = false
+    }
+
     // عرض رسائل التنبيه والنجاح
     LaunchedEffect(uiState.errorMessage, uiState.successMessage) {
         uiState.errorMessage?.let { msg ->
@@ -309,7 +324,9 @@ fun SettingsContent(
                 MasroofiExpandableCard(
                     title = "تخصيص التطبيق والعملة",
                     icon = Icons.Default.Tune,
-                    iconColor = PrimaryGreen
+                    iconColor = PrimaryGreen,
+                    isExpanded = isCustomizationExpanded,
+                    onExpandedChange = { isCustomizationExpanded = it }
                 ) {
                     // بطاقة اختيار العملة الرئيسية التفاعلية
                     Row(
@@ -422,7 +439,9 @@ fun SettingsContent(
                     onBackupNowClick = onBackupNowClick,
                     onRestoreClick = onCloudRestoreClick,
                     onDeleteAccountClick = onOpenDeleteAccountDialog,
-                    onPrivacyPolicyClick = onOpenPrivacyPolicy
+                    onPrivacyPolicyClick = onOpenPrivacyPolicy,
+                    isExpanded = isCloudExpanded,
+                    onExpandedChange = { isCloudExpanded = it }
                 )
             }
 
@@ -431,7 +450,9 @@ fun SettingsContent(
                 MasroofiExpandableCard(
                     title = "النسخ الاحتياطي وتصدير البيانات",
                     icon = Icons.Default.CloudSync,
-                    iconColor = PrimaryGreen
+                    iconColor = PrimaryGreen,
+                    isExpanded = isBackupExpanded,
+                    onExpandedChange = { isBackupExpanded = it }
                 ) {
                     // أ) إنشاء نسخة احتياطية JSON
                     Row(

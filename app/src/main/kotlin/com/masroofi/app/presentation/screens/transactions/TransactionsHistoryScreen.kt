@@ -1,5 +1,6 @@
 package com.masroofi.app.presentation.screens.transactions
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -51,6 +52,20 @@ fun TransactionsHistoryScreen(
     val currencySymbol = LocalAppCurrency.current.symbolArabic
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // إدارة زر الرجوع خطوة بخطوة: مسح البحث أولاً، ثم إعادة تعيين الفلاتر قبل الخروج للرئيسية
+    val hasActiveFilterOrSearch = uiState.searchQuery.isNotEmpty() ||
+        uiState.selectedFilterIndex != 0 ||
+        uiState.selectedCategoryId != null ||
+        uiState.selectedDatePeriod != DateRangeFilter.ALL
+
+    BackHandler(enabled = hasActiveFilterOrSearch) {
+        if (uiState.searchQuery.isNotEmpty()) {
+            viewModel.setSearchQuery("")
+        } else {
+            viewModel.resetFilters()
+        }
+    }
 
     LaunchedEffect(uiState.userMessage) {
         uiState.userMessage?.let { msg ->
@@ -748,7 +763,7 @@ private fun FilteredResultsSummaryCard(
                 )
             }
 
-            // صافي التدفق
+            // الصافي
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = "الصافي",
@@ -756,10 +771,11 @@ private fun FilteredResultsSummaryCard(
                     color = TextSecondary,
                     fontSize = 11.sp
                 )
-                val netColor = if (netTotal >= 0) IncomeGreen else ExpenseRed
-                val prefix = if (netTotal >= 0) "+ " else "- "
+                val netValue = maxOf(0L, netTotal)
+                val netColor = IncomeGreen
+                val prefix = "+ "
                 Text(
-                    text = "$prefix${formatNumber(kotlin.math.abs(netTotal))} $currencySymbol",
+                    text = "$prefix${formatNumber(netValue)} $currencySymbol",
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
                     color = netColor

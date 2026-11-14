@@ -236,10 +236,13 @@ fun MasroofiExpandableCard(
     icon: ImageVector,
     iconColor: Color = MaterialTheme.colorScheme.primary,
     modifier: Modifier = Modifier,
+    isExpanded: Boolean? = null,
+    onExpandedChange: ((Boolean) -> Unit)? = null,
     expandedContent: @Composable ColumnScope.() -> Unit
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
-    val rotationAngle by animateFloatAsState(targetValue = if (isExpanded) -90f else 0f, label = "chevron")
+    var localExpanded by remember { mutableStateOf(false) }
+    val expandedState = isExpanded ?: localExpanded
+    val rotationAngle by animateFloatAsState(targetValue = if (expandedState) -90f else 0f, label = "chevron")
 
     Surface(
         modifier = modifier
@@ -256,7 +259,13 @@ fun MasroofiExpandableCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { isExpanded = !isExpanded }
+                    .clickable {
+                        if (onExpandedChange != null) {
+                            onExpandedChange(!expandedState)
+                        } else {
+                            localExpanded = !localExpanded
+                        }
+                    }
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -296,7 +305,7 @@ fun MasroofiExpandableCard(
                 )
             }
 
-            AnimatedVisibility(visible = isExpanded) {
+            AnimatedVisibility(visible = expandedState) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()

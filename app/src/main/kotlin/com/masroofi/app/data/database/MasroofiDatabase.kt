@@ -88,10 +88,11 @@ abstract class MasroofiDatabase : RoomDatabase() {
 
             override fun onOpen(db: SupportSQLiteDatabase) {
                 super.onOpen(db)
-                // ضمان تمييز أسماء التصنيفات الافتراضية بدقة
+                // ضمان تمييز أسماء التصنيفات الافتراضية بدقة وإضافة تصنيف الرصيد الافتتاحي إن لم يكن موجوداً
                 try {
                     db.execSQL("UPDATE categories SET name = 'مصروفات أخرى' WHERE id = 'cat_exp_other' AND name = 'أخرى'")
                     db.execSQL("UPDATE categories SET name = 'إيرادات أخرى' WHERE id = 'cat_inc_other' AND name = 'أخرى'")
+                    db.execSQL("INSERT OR IGNORE INTO categories (id, name, type, iconKey, isDefault, isActive) VALUES ('cat_inc_opening_balance', 'الرصيد الافتتاحي / المحفظة', 'INCOME', 'account_balance_wallet', 1, 1)")
                 } catch (_: Exception) {
                 }
             }

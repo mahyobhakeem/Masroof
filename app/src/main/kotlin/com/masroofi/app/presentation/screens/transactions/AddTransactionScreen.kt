@@ -1,5 +1,6 @@
 package com.masroofi.app.presentation.screens.transactions
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -37,6 +39,8 @@ import com.masroofi.app.presentation.components.LocalAppCurrency
 import com.masroofi.app.presentation.components.MasroofiTextField
 import com.masroofi.app.presentation.components.ThousandsSeparatorVisualTransformation
 import com.masroofi.app.presentation.theme.*
+import com.masroofi.app.utils.FormatUtils
+import com.masroofi.app.utils.formatNumber
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -143,6 +147,100 @@ fun AddTransactionContent(
                 Spacer(modifier = Modifier.height(18.dp))
             }
 
+            // 1. شريط توضيح الرصيد المتاح حالياً (الصافي) وحماية الرصيد
+            item {
+                val currency = LocalAppCurrency.current
+                val balance = uiState.currentAvailableBalance
+                val isZero = balance <= 0L
+
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isZero) Color(0xFFFFF7ED) else MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(
+                        1.dp,
+                        if (isZero) Color(0xFFFDBA74) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    ),
+                    tonalElevation = 1.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isZero) Color(0xFFF97316).copy(alpha = 0.15f) else PrimaryGreen.copy(alpha = 0.12f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.AccountBalanceWallet,
+                                        contentDescription = null,
+                                        tint = if (isZero) Color(0xFFEA580C) else PrimaryGreen,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Text(
+                                    text = "الرصيد المتاح حالياً (الصافي):",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (isZero) Color(0xFF9A3412) else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            Text(
+                                text = "${formatNumber(maxOf(0L, balance))} ${currency.symbolArabic}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isZero) Color(0xFFEA580C) else IncomeGreen
+                            )
+                        }
+
+                        if (isZero) {
+                            HorizontalDivider(color = Color(0xFFFED7AA))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "رصيدك الحالي 0 — أضف إيراداً أو رصيداً أولاً لتتمكن من تسجيل المصروفات",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFF9A3412),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (uiState.type == TransactionType.EXPENSE) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    FilledTonalButton(
+                                        onClick = { onTypeChange(TransactionType.INCOME) },
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = IncomeGreen,
+                                            contentColor = Color.White
+                                        ),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.height(32.dp)
+                                    ) {
+                                        Text(text = "إضافة إيراد", style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             // التبديل السلس بين مصروف وإيراد
             item {
                 TransactionTypeToggle(
@@ -170,6 +268,34 @@ fun AddTransactionContent(
                     supportingText = uiState.amountError
                 )
                 Spacer(modifier = Modifier.height(18.dp))
+            }
+
+            // زر سريع للتبديل لإيراد إذا ظهر خطأ رصيد الصفر
+            if (uiState.amountError != null && uiState.type == TransactionType.EXPENSE && uiState.currentAvailableBalance <= 0L) {
+                item {
+                    FilledTonalButton(
+                        onClick = { onTypeChange(TransactionType.INCOME) },
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = IncomeGreen,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 14.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AccountBalanceWallet,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "التبديل إلى تبويب إضافة إيراد الآن",
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
 
             // قسم اختيار التصنيف

@@ -23,6 +23,8 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,39 +65,56 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    HomeScreenContent(
-        uiState = uiState,
-        onNavigateToTransactions = onNavigateToTransactions,
-        onPeriodModeSelect = viewModel::setPeriodMode,
-        onPrevious = {
-            when (uiState.selectedPeriodMode) {
-                TimePeriodMode.DAILY -> viewModel.selectPreviousDay()
-                TimePeriodMode.WEEKLY -> viewModel.selectPreviousWeek()
-                TimePeriodMode.MONTHLY -> viewModel.selectPreviousMonth()
-                TimePeriodMode.CUSTOM_RANGE -> viewModel.openCustomRangePicker()
-            }
-        },
-        onNext = {
-            when (uiState.selectedPeriodMode) {
-                TimePeriodMode.DAILY -> viewModel.selectNextDay()
-                TimePeriodMode.WEEKLY -> viewModel.selectNextWeek()
-                TimePeriodMode.MONTHLY -> viewModel.selectNextMonth()
-                TimePeriodMode.CUSTOM_RANGE -> viewModel.openCustomRangePicker()
-            }
-        },
-        onDateClick = {
-            when (uiState.selectedPeriodMode) {
-                TimePeriodMode.DAILY -> viewModel.openDatePicker()
-                TimePeriodMode.CUSTOM_RANGE -> viewModel.openCustomRangePicker()
-                else -> {}
-            }
-        },
-        onBackToToday = { viewModel.setSelectedDate(LocalDate.now()) },
-        onOpenBudgetDialog = viewModel::openBudgetDialog,
-        onTransactionClick = viewModel::onTransactionClick,
-        modifier = modifier
-    )
+    LaunchedEffect(uiState.userMessage) {
+        uiState.userMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearUserMessage()
+        }
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        HomeScreenContent(
+            uiState = uiState,
+            onNavigateToTransactions = onNavigateToTransactions,
+            onPeriodModeSelect = viewModel::setPeriodMode,
+            onPrevious = {
+                when (uiState.selectedPeriodMode) {
+                    TimePeriodMode.DAILY -> viewModel.selectPreviousDay()
+                    TimePeriodMode.WEEKLY -> viewModel.selectPreviousWeek()
+                    TimePeriodMode.MONTHLY -> viewModel.selectPreviousMonth()
+                    TimePeriodMode.CUSTOM_RANGE -> viewModel.openCustomRangePicker()
+                }
+            },
+            onNext = {
+                when (uiState.selectedPeriodMode) {
+                    TimePeriodMode.DAILY -> viewModel.selectNextDay()
+                    TimePeriodMode.WEEKLY -> viewModel.selectNextWeek()
+                    TimePeriodMode.MONTHLY -> viewModel.selectNextMonth()
+                    TimePeriodMode.CUSTOM_RANGE -> viewModel.openCustomRangePicker()
+                }
+            },
+            onDateClick = {
+                when (uiState.selectedPeriodMode) {
+                    TimePeriodMode.DAILY -> viewModel.openDatePicker()
+                    TimePeriodMode.CUSTOM_RANGE -> viewModel.openCustomRangePicker()
+                    else -> {}
+                }
+            },
+            onBackToToday = { viewModel.setSelectedDate(LocalDate.now()) },
+            onOpenBudgetDialog = viewModel::openBudgetDialog,
+            onTransactionClick = viewModel::onTransactionClick,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 80.dp)
+        )
+    }
 
     // نافذة اختيار تاريخ يوم محدد
     if (uiState.isDatePickerOpen) {
@@ -594,10 +613,10 @@ private fun PeriodFinancialSummaryCard(
                     }
                 }
 
-                // صافي التدفق
+                // الصافي
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val isPositive = uiState.periodNetCashflow >= 0L
-                    val amountTextColor = if (isPositive) IncomeGreen else MaterialTheme.colorScheme.error
+                    val netValue = maxOf(0L, uiState.periodNetCashflow)
+                    val amountTextColor = IncomeGreen
 
                     Surface(
                         shape = CircleShape,
@@ -606,7 +625,7 @@ private fun PeriodFinancialSummaryCard(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = if (isPositive) Icons.AutoMirrored.Filled.TrendingUp else Icons.AutoMirrored.Filled.TrendingDown,
+                                imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                                 contentDescription = null,
                                 tint = EmeraldPrimary,
                                 modifier = Modifier.size(18.dp)
@@ -616,12 +635,12 @@ private fun PeriodFinancialSummaryCard(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "صافي التدفق",
+                            text = "الصافي",
                             style = MaterialTheme.typography.labelSmall,
                             color = TextSecondary
                         )
                         Text(
-                            text = "${if (isPositive) "+" else "-"}${formatNumber(abs(uiState.periodNetCashflow))} $currencySymbol",
+                            text = "+${formatNumber(netValue)} $currencySymbol",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = amountTextColor

@@ -9,6 +9,7 @@ import com.masroofi.app.domain.calculations.FinancialCalculator
 import com.masroofi.app.domain.calculations.FinancialSummary
 import com.masroofi.app.domain.model.TimePeriodMode
 import com.masroofi.app.domain.model.TransactionItem
+import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.domain.repository.TransactionRepository
 import com.masroofi.app.domain.usecase.GetMonthlyFinancialSummaryUseCase
 import com.masroofi.app.domain.usecase.SetMonthlyBudgetUseCase
@@ -48,7 +49,8 @@ data class HomeUiState(
     val isSavingBudget: Boolean = false,
     val selectedTransactionForDetails: TransactionItem? = null,
     val isDeleteDialogOpen: Boolean = false,
-    val transactionToDelete: TransactionItem? = null
+    val transactionToDelete: TransactionItem? = null,
+    val userMessage: String? = null
 )
 
 /**
@@ -346,6 +348,20 @@ class HomeViewModel(
 
     fun confirmDeleteTransaction() {
         val tx = _uiState.value.transactionToDelete ?: return
+        if (tx.type == TransactionType.INCOME) {
+            val netCashflow = _uiState.value.periodNetCashflow
+            if (netCashflow - tx.amount < 0L) {
+                _uiState.update {
+                    it.copy(
+                        isDeleteDialogOpen = false,
+                        transactionToDelete = null,
+                        selectedTransactionForDetails = null,
+                        userMessage = "لا يمكن حذف هذا الإيراد لأن هناك مصروفات مسجلة اعتمدت عليه، مما سيجعل الصافي بالسالب"
+                    )
+                }
+                return
+            }
+        }
         viewModelScope.launch {
             transactionRepository.deleteTransaction(tx.id)
             _uiState.update {
@@ -356,6 +372,10 @@ class HomeViewModel(
                 )
             }
         }
+    }
+
+    fun clearUserMessage() {
+        _uiState.update { it.copy(userMessage = null) }
     }
 }
 

@@ -268,6 +268,14 @@ class TransactionsHistoryViewModel(
     }
 
     fun deleteTransaction(id: String) {
+        val tx = _uiState.value.transactions.find { it.id == id }
+        if (tx != null && tx.type == TransactionType.INCOME) {
+            val currentNet = _uiState.value.netTotal
+            if (currentNet - tx.amount < 0L) {
+                _userMessage.value = "لا يمكن حذف هذا الإيراد لأن هناك مصروفات مسجلة اعتمدت عليه، مما سيجعل الصافي بالسالب"
+                return
+            }
+        }
         viewModelScope.launch {
             val result = transactionRepository.deleteTransaction(id)
             if (result.isSuccess) {

@@ -94,6 +94,14 @@ object DefaultCategories {
 
     val incomeCategories = listOf(
         CategoryEntity(
+            id = "cat_inc_opening_balance",
+            name = "الرصيد الافتتاحي / المحفظة",
+            type = TransactionType.INCOME,
+            iconKey = "account_balance_wallet",
+            isDefault = true,
+            isActive = true
+        ),
+        CategoryEntity(
             id = "cat_inc_salary",
             name = "الراتب",
             type = TransactionType.INCOME,

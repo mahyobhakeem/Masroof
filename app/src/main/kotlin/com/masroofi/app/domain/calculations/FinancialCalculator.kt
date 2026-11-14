@@ -90,6 +90,16 @@ object FinancialCalculator {
     }
 
     /**
+     * 8. حساب إجمالي الرصيد الصافي المتاح في المحفظة لكافة العمليات المسجلة
+     * (إجمالي الإيرادات المسجلة - إجمالي المصروفات المسجلة)
+     */
+    fun calculateAvailableBalance(transactions: List<TransactionItem>): Long {
+        val totalIncome = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+        val totalExpense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+        return totalIncome - totalExpense
+    }
+
+    /**
      * تجميع وحساب الملخص المالي الشامل
      */
     fun buildFinancialSummary(

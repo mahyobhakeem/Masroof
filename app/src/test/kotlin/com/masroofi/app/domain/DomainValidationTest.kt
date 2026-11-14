@@ -22,10 +22,10 @@ class DomainValidationTest {
         val incomeCats = DefaultCategories.incomeCategories
         val allCats = DefaultCategories.allDefaultCategories
 
-        // 10 تصنيفات للمصروفات و 5 للإيرادات
+        // 10 تصنيفات للمصروفات و 6 للإيرادات
         assertEquals("يجب أن يحتوي قسم المصروفات على 10 تصنيفات افتراضية بالضبط", 10, expenseCats.size)
-        assertEquals("يجب أن يحتوي قسم الإيرادات على 5 تصنيفات افتراضية بالضبط", 5, incomeCats.size)
-        assertEquals("إجمالي التصنيفات الافتراضية يجب أن يكون 15 تصنيفاً", 15, allCats.size)
+        assertEquals("يجب أن يحتوي قسم الإيرادات على 6 تصنيفات افتراضية بالضبط", 6, incomeCats.size)
+        assertEquals("إجمالي التصنيفات الافتراضية يجب أن يكون 16 تصنيفاً", 16, allCats.size)
 
         // التحقق من عدم وجود أي تكرار في المعرفات الثابتة
         val distinctIds = allCats.map { it.id }.distinct()
@@ -61,11 +61,12 @@ class DomainValidationTest {
         }
     }
 
-    // 3. التحقق من أسماء تصنيفات الإيرادات الخمسة المعتمدة
+    // 3. التحقق من أسماء تصنيفات الإيرادات الستة المعتمدة
     @Test
     fun defaultIncomeCategories_containAllRequiredNames() {
         val names = DefaultCategories.incomeCategories.map { it.name }
         val requiredNames = listOf(
+            "الرصيد الافتتاحي / المحفظة",
             "الراتب",
             "العمل الإضافي",
             "التجارة والعمل الحر",

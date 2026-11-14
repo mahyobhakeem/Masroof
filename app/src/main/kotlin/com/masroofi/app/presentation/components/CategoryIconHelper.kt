@@ -29,6 +29,7 @@ object CategoryIconHelper {
             "trending_up" -> Icons.AutoMirrored.Filled.TrendingUp
             "card_giftcard" -> Icons.Default.CardGiftcard
             "savings" -> Icons.Default.Savings
+            "account_balance_wallet" -> Icons.Default.AccountBalanceWallet
             else -> Icons.Default.Category
         }
     }
@@ -67,6 +68,7 @@ object CategoryIconHelper {
         "school",
         "sports_esports",
         "payments",
+        "account_balance_wallet",
         "more_time",
         "trending_up",
         "card_giftcard",

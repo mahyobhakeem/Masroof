@@ -146,7 +146,7 @@ class RepositoryLogicTest {
     fun categoryRepository_seedsDefaultCategoriesSuccessfully() = runTest {
         val seedResult = categoryRepository.seedDefaultCategories()
         assertTrue(seedResult.isSuccess)
-        assertEquals(15, fakeCategoryDao.categories.size)
+        assertEquals(16, fakeCategoryDao.categories.size)
     }
 }
 

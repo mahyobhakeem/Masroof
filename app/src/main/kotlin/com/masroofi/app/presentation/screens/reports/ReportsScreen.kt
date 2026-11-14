@@ -1,5 +1,7 @@
 package com.masroofi.app.presentation.screens.reports
 
+import androidx.activity.compose.BackHandler
+
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -59,6 +61,11 @@ fun ReportsScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // إدارة زر الرجوع خطوة بخطوة: إلغاء تحديد الشريحة أولاً قبل العودة للرئيسية
+    BackHandler(enabled = uiState.selectedCategoryForDetails != null) {
+        viewModel.selectCategory(null)
+    }
 
     ReportsContent(
         uiState = uiState,
@@ -445,10 +452,10 @@ private fun ReportsSummaryCards(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // بطاقة صافي التدفق المالي
-            val isSurplus = netCashflow >= 0
-            val netColor = if (isSurplus) IncomeGreen else ExpenseRed
-            val netPrefix = if (isSurplus) "+ " else "- "
+            // بطاقة الصافي
+            val netValue = maxOf(0L, netCashflow)
+            val netColor = IncomeGreen
+            val netPrefix = "+ "
 
             Surface(
                 modifier = Modifier.weight(1f),
@@ -477,13 +484,13 @@ private fun ReportsSummaryCards(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = if (isSurplus) "صافي التدفق (فائض)" else "صافي التدفق (عجز)",
+                            text = "الصافي",
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary,
                             fontSize = 11.sp
                         )
                         Text(
-                            text = "$netPrefix${formatNumber(kotlin.math.abs(netCashflow))} $currencySymbol",
+                            text = "$netPrefix${formatNumber(netValue)} $currencySymbol",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = netColor

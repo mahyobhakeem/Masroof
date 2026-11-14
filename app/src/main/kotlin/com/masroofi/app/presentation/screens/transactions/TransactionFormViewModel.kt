@@ -4,11 +4,14 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.masroofi.app.domain.calculations.FinancialCalculator
 import com.masroofi.app.domain.model.Category
 import com.masroofi.app.domain.model.TransactionItem
 import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.domain.repository.CategoryRepository
 import com.masroofi.app.domain.repository.TransactionRepository
+import com.masroofi.app.utils.FormatUtils
+import com.masroofi.app.utils.formatNumber
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -29,6 +32,7 @@ data class TransactionFormUiState(
     val createdAt: Long = System.currentTimeMillis(),
     val isSaving: Boolean = false,
     val isEditing: Boolean = false,
+    val currentAvailableBalance: Long = 0L,
     val amountError: String? = null,
     val dateError: String? = null,
     val categoryError: String? = null,
@@ -39,6 +43,7 @@ data class TransactionFormUiState(
 
 /**
  * نموذج العرض (ViewModel) لإدارة عمليات إضافة وتعديل وحذف العمليات المالية
+ * مع التحقق المالي الصارم وحماية الرصيد الصافي المتاح (Balance Validation Guard)
  */
 class TransactionFormViewModel(
     private val transactionRepository: TransactionRepository,
@@ -48,7 +53,18 @@ class TransactionFormViewModel(
     private val _uiState = MutableStateFlow(TransactionFormUiState())
     val uiState: StateFlow<TransactionFormUiState> = _uiState.asStateFlow()
 
+    private var allTransactions: List<TransactionItem> = emptyList()
+
     init {
+        viewModelScope.launch {
+            transactionRepository.getAllTransactions().distinctUntilChanged().collect { txs ->
+                allTransactions = txs
+                val balance = FinancialCalculator.calculateAvailableBalance(txs)
+                _uiState.update { current ->
+                    current.copy(currentAvailableBalance = balance)
+                }
+            }
+        }
         loadCategoriesForType(TransactionType.EXPENSE)
     }
 
@@ -75,16 +91,25 @@ class TransactionFormViewModel(
     }
 
     /**
-     * تهيئة النموذج للإضافة الجديدة
+     * تهيئة النموذج للإضافة الجديدة مع فحص الرصيد المتاح:
+     * إذا كان الرصيد صفراً يتم الفتح تلقائياً على تبويب "إيراد" مع تنبيه المستخدم
      */
     fun initForAdd(defaultType: TransactionType = TransactionType.EXPENSE) {
+        val balance = FinancialCalculator.calculateAvailableBalance(allTransactions)
+        val initialType = if (balance <= 0L) TransactionType.INCOME else defaultType
+        val message = if (balance <= 0L) {
+            "رصيدك الحالي 0 — أضف إيراداً أو رصيداً أولاً لتتمكن من تسجيل المصروفات"
+        } else null
+
         _uiState.update {
             TransactionFormUiState(
-                type = defaultType,
-                transactionDate = LocalDate.now()
+                type = initialType,
+                transactionDate = LocalDate.now(),
+                currentAvailableBalance = balance,
+                userMessage = message
             )
         }
-        loadCategoriesForType(defaultType)
+        loadCategoriesForType(initialType)
     }
 
     /**
@@ -92,6 +117,7 @@ class TransactionFormViewModel(
      */
     fun initForEdit(transaction: TransactionItem) {
         val parsedDate = runCatching { LocalDate.parse(transaction.transactionDate) }.getOrDefault(LocalDate.now())
+        val balance = FinancialCalculator.calculateAvailableBalance(allTransactions)
         _uiState.update {
             it.copy(
                 transactionId = transaction.id,
@@ -101,9 +127,11 @@ class TransactionFormViewModel(
                 note = transaction.note.orEmpty(),
                 createdAt = transaction.createdAt,
                 isEditing = true,
+                currentAvailableBalance = balance,
                 amountError = null,
                 dateError = null,
                 categoryError = null,
+                userMessage = null,
                 isSavedSuccess = false,
                 isDeletedSuccess = false
             )
@@ -112,11 +140,27 @@ class TransactionFormViewModel(
     }
 
     /**
-     * تغيير نوع العملية (مصروف أو إيراد) وتحديث قائمة التصنيفات فوراً
+     * تغيير نوع العملية (مصروف أو إيراد) مع حماية الرصيد الصفري
      */
     fun setType(type: TransactionType) {
+        val currentBalance = _uiState.value.currentAvailableBalance
+        val isEditing = _uiState.value.isEditing
+
+        // إذا كان الرصيد صفراً وحاول المستخدم التبديل إلى "مصروف" عند الإضافة، نمنعه ونعرض رسالة خطأ صريحة
+        if (type == TransactionType.EXPENSE && !isEditing && currentBalance <= 0L) {
+            _uiState.update {
+                it.copy(
+                    type = TransactionType.INCOME,
+                    amountError = "لا يمكن تسجيل مصروف لأن رصيدك المتاح هو 0. يرجى إضافة إيراد أولاً",
+                    userMessage = "لا يمكن تسجيل مصروف لأن رصيدك المتاح هو 0. يرجى إضافة إيراد أولاً"
+                )
+            }
+            loadCategoriesForType(TransactionType.INCOME)
+            return
+        }
+
         if (_uiState.value.type != type) {
-            _uiState.update { it.copy(type = type, selectedCategory = null) }
+            _uiState.update { it.copy(type = type, selectedCategory = null, amountError = null) }
             loadCategoriesForType(type)
         }
     }
@@ -165,7 +209,7 @@ class TransactionFormViewModel(
     }
 
     /**
-     * حفظ العملية المالية (إضافة جديدة أو تعديل) مع تطبيق قواعد التحقق الصارمة
+     * حفظ العملية المالية (إضافة جديدة أو تعديل) مع تطبيق قواعد التحقق الصارمة وحماية الرصيد
      */
     fun saveTransaction() {
         val currentState = _uiState.value
@@ -189,6 +233,71 @@ class TransactionFormViewModel(
         if (currentState.transactionDate.isAfter(LocalDate.now())) {
             _uiState.update { it.copy(dateError = "لا يمكن تسجيل عملية بتاريخ مستقبلي") }
             return
+        }
+
+        // 4. الحماية الصارمة للمنطق المالي والرصيد المتاح (Balance Validation Guard)
+        if (currentState.type == TransactionType.EXPENSE) {
+            if (!currentState.isEditing) {
+                // حالة الإضافة الجديدة لمصروف:
+                if (currentState.currentAvailableBalance <= 0L) {
+                    _uiState.update {
+                        it.copy(
+                            amountError = "لا يمكن تسجيل مصروف لأن رصيدك المتاح هو 0. يرجى إضافة إيراد أولاً",
+                            userMessage = "لا يمكن تسجيل مصروف لأن رصيدك المتاح هو 0. يرجى إضافة إيراد أولاً"
+                        )
+                    }
+                    return
+                }
+                if (parsedAmount > currentState.currentAvailableBalance) {
+                    _uiState.update {
+                        it.copy(
+                            amountError = "المبلغ المدخل يتجاوز رصيدك الصافي المتاح حالياً (${formatNumber(currentState.currentAvailableBalance)})"
+                        )
+                    }
+                    return
+                }
+            } else {
+                // حالة التعديل لمصروف قائم:
+                val origTx = allTransactions.find { it.id == currentState.transactionId }
+                val maxAllowed = if (origTx != null && origTx.type == TransactionType.EXPENSE) {
+                    currentState.currentAvailableBalance + origTx.amount
+                } else if (origTx != null && origTx.type == TransactionType.INCOME) {
+                    currentState.currentAvailableBalance - origTx.amount
+                } else {
+                    currentState.currentAvailableBalance
+                }
+
+                if (maxAllowed <= 0L) {
+                    _uiState.update {
+                        it.copy(amountError = "لا يمكن تسجيل مصروف لأن رصيدك المتاح بعد التعديل هو 0 أو أقل")
+                    }
+                    return
+                }
+                if (parsedAmount > maxAllowed) {
+                    _uiState.update {
+                        it.copy(
+                            amountError = "المبلغ المدخل يتجاوز رصيدك الصافي المتاح حالياً (${formatNumber(maxAllowed)})"
+                        )
+                    }
+                    return
+                }
+            }
+        } else {
+            // في حالة تعديل إيراد موجود: التحقق من عدم جعل الصافي سالباً
+            if (currentState.isEditing) {
+                val origTx = allTransactions.find { it.id == currentState.transactionId }
+                if (origTx != null && origTx.type == TransactionType.INCOME) {
+                    val reduction = origTx.amount - parsedAmount
+                    if (reduction > 0 && (currentState.currentAvailableBalance - reduction) < 0L) {
+                        _uiState.update {
+                            it.copy(
+                                amountError = "لا يمكن تقليل هذا الإيراد لأن هناك مصروفات مسجلة اعتمدت عليه، مما سيجعل الصافي بالسالب"
+                            )
+                        }
+                        return
+                    }
+                }
+            }
         }
 
         _uiState.update { it.copy(isSaving = true) }
@@ -257,9 +366,22 @@ class TransactionFormViewModel(
     }
 
     /**
-     * حذف العملية المالية
+     * حذف العملية المالية مع منع حذف الإيرادات التي تعتمد عليها مصروفات
      */
     fun deleteTransaction(transactionId: String) {
+        val tx = allTransactions.find { it.id == transactionId }
+        if (tx != null && tx.type == TransactionType.INCOME) {
+            val resultingBalance = _uiState.value.currentAvailableBalance - tx.amount
+            if (resultingBalance < 0L) {
+                _uiState.update {
+                    it.copy(
+                        userMessage = "لا يمكن حذف هذا الإيراد لأن هناك مصروفات مسجلة اعتمدت عليه، مما سيجعل الصافي بالسالب"
+                    )
+                }
+                return
+            }
+        }
+
         viewModelScope.launch {
             val result = transactionRepository.deleteTransaction(transactionId)
             if (result.isSuccess) {
