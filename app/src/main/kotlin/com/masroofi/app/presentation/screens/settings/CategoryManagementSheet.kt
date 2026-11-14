@@ -35,6 +35,7 @@ import androidx.compose.ui.window.Dialog
 import com.masroofi.app.domain.model.Category
 import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.presentation.components.CategoryIconHelper
+import com.masroofi.app.presentation.components.MasroofSwitch
 import com.masroofi.app.presentation.components.MasroofiTextField
 import com.masroofi.app.presentation.theme.ExpenseRed
 import com.masroofi.app.presentation.theme.IncomeGreen
@@ -97,6 +98,7 @@ fun CategoryManagementSheet(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .navigationBarsPadding()
                 .background(MaterialTheme.colorScheme.background)
         ) {
             // شريط التبويب: المصروفات / الإيرادات
@@ -256,8 +258,8 @@ private fun CategoryManagementRow(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // مفتاح التبديل للتعطيل أو التفعيل
-                Switch(
+                // مفتاح التبديل للتعطيل أو التفعيل الموحد
+                MasroofSwitch(
                     checked = category.isActive,
                     onCheckedChange = { onToggleActive() },
                     modifier = Modifier.padding(end = 4.dp)

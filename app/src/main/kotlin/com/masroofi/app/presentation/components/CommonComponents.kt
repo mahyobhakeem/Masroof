@@ -12,7 +12,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -305,6 +308,58 @@ fun MasroofiExpandableCard(
             }
         }
     }
+}
+
+/**
+ * زر التبديل المعتمد والموحد لتطبيق مصروف (MasroofSwitch)
+ * بتصميم عالي التباين وأيقونة واضحة داخل المقبض المتحرك في الوضعين الفاتح والداكن
+ */
+@Composable
+fun MasroofSwitch(
+    checked: Boolean,
+    onCheckedChange: ((Boolean) -> Unit)?,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    val emeraldColor = Color(0xFF16A67A)
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
+
+    val uncheckedTrack = if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1)
+    val uncheckedBorder = if (isDark) Color(0xFF475569) else Color(0xFF64748B)
+    val uncheckedThumb = Color.White
+    val uncheckedIconColor = if (isDark) Color(0xFF475569) else Color(0xFF64748B)
+
+    Switch(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier,
+        enabled = enabled,
+        thumbContent = {
+            if (checked) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = emeraldColor,
+                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = null,
+                    tint = uncheckedIconColor,
+                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                )
+            }
+        },
+        colors = SwitchDefaults.colors(
+            checkedThumbColor = Color.White,
+            checkedTrackColor = emeraldColor,
+            checkedBorderColor = emeraldColor,
+            uncheckedThumbColor = uncheckedThumb,
+            uncheckedTrackColor = uncheckedTrack,
+            uncheckedBorderColor = uncheckedBorder
+        )
+    )
 }
 
 /**

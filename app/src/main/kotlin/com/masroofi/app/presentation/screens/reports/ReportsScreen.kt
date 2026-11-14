@@ -592,6 +592,18 @@ private fun EmptyReportsStateCard(
     }
 }
 
+// لوحة الألوان المالية التنفيذية المعتمدة للمخطط الدائري ومربعات الإيضاح (Executive Financial Palette)
+val ExecutiveFinancialPalette = listOf(
+    Color(0xFF16A67A), // 1. أخضر زمردي
+    Color(0xFF2563EB), // 2. أزرق ملكي
+    Color(0xFFD97706), // 3. ذهبي عنبري
+    Color(0xFF0D9488), // 4. فيروزي عميق
+    Color(0xFF7C3AED), // 5. بنفسجي مالي
+    Color(0xFFE11D48), // 6. مرجاني ناعم
+    Color(0xFF475569), // 7. كحلي صخري
+    Color(0xFF65A30D)  // 8. زيتوني
+)
+
 /**
  * الرسم الأول: بطاقة مخطط توزيع المصروفات الدائري المفرغ (Donut Chart) مع قائمة التصنيفات التفاعلية
  */
@@ -624,7 +636,7 @@ private fun ExpenseBreakdownDonutChartCard(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // الرسم الدائري المفرغ (Donut Chart)
+            // الرسم الدائري المفرغ (Donut Chart) مع لوحة الألوان المالية التنفيذية
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -649,13 +661,13 @@ private fun ExpenseBreakdownDonutChartCard(
                     var startAngle = -90f
                     val total = if (totalExpenses > 0L) totalExpenses.toFloat() else 1f
 
-                    categories.forEach { cat ->
+                    categories.forEachIndexed { index, cat ->
                         val sweepAngle = (cat.totalSpent.toFloat() / total) * 360f
-                        val catColor = CategoryIconHelper.getColor(cat.iconKey)
+                        val sliceColor = ExecutiveFinancialPalette[index % ExecutiveFinancialPalette.size]
                         val isSelected = selectedCategory?.categoryId == cat.categoryId
 
                         drawArc(
-                            color = catColor,
+                            color = sliceColor,
                             startAngle = startAngle,
                             sweepAngle = sweepAngle,
                             useCenter = false,
@@ -673,11 +685,16 @@ private fun ExpenseBreakdownDonutChartCard(
                     modifier = Modifier.padding(horizontal = 24.dp)
                 ) {
                     if (selectedCategory != null) {
+                        val selectedIndex = categories.indexOfFirst { it.categoryId == selectedCategory.categoryId }
+                        val activeColor = if (selectedIndex >= 0) {
+                            ExecutiveFinancialPalette[selectedIndex % ExecutiveFinancialPalette.size]
+                        } else PrimaryGreen
+
                         Text(
                             text = selectedCategory.categoryName,
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
-                            color = CategoryIconHelper.getColor(selectedCategory.iconKey),
+                            color = activeColor,
                             textAlign = TextAlign.Center
                         )
                         Text(
@@ -746,14 +763,14 @@ private fun ExpenseBreakdownDonutChartCard(
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            // قائمة بنود التصنيفات مع الألوان والأيقونات والنسب المئوية
+            // قائمة بنود التصنيفات مع الألوان ومربعات الإيضاح والأيقونات والنسب المئوية
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                categories.forEach { category ->
+                categories.forEachIndexed { index, category ->
                     val isSelected = selectedCategory?.categoryId == category.categoryId
-                    val catColor = CategoryIconHelper.getColor(category.iconKey)
+                    val sliceColor = ExecutiveFinancialPalette[index % ExecutiveFinancialPalette.size]
                     val catIcon = CategoryIconHelper.getIcon(category.iconKey)
 
                     Surface(
@@ -762,9 +779,9 @@ private fun ExpenseBreakdownDonutChartCard(
                             .clip(RoundedCornerShape(10.dp))
                             .clickable { onCategorySelect(category) },
                         shape = RoundedCornerShape(10.dp),
-                        color = if (isSelected) catColor.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
+                        color = if (isSelected) sliceColor.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
                         border = if (isSelected) {
-                            androidx.compose.foundation.BorderStroke(1.5.dp, catColor)
+                            androidx.compose.foundation.BorderStroke(1.5.dp, sliceColor)
                         } else null,
                         tonalElevation = if (isSelected) 2.dp else 0.dp
                     ) {
@@ -775,11 +792,21 @@ private fun ExpenseBreakdownDonutChartCard(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // الأيقونة واسم التصنيف وعدد العمليات
+                            // مؤشر اللون المالي، الأيقونة واسم التصنيف وعدد العمليات
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier.weight(1f)
                             ) {
+                                // مربع إيضاح لوحة الألوان المالية
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(sliceColor)
+                                )
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
                                 Box(
                                     modifier = Modifier
                                         .size(32.dp)

@@ -15,9 +15,13 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.UnfoldLess
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -112,6 +116,7 @@ fun TransactionsHistoryContent(
     val groupedTransactions = remember(uiState.transactions) {
         uiState.transactions.groupBy { it.transactionDate }
     }
+    var collapsedDates by remember { mutableStateOf(setOf<String>()) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -432,7 +437,7 @@ fun TransactionsHistoryContent(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // شريط عدد النتائج وزر إعادة التعيين
+            // شريط عدد النتائج، زر طي/توسيع الكل، وزر إعادة التعيين
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -445,19 +450,48 @@ fun TransactionsHistoryContent(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
-                    val isFiltered = uiState.selectedCategoryId != null ||
-                            uiState.selectedFilterIndex != 0 ||
-                            uiState.selectedDatePeriod != DateRangeFilter.ALL ||
-                            uiState.searchQuery.isNotBlank()
 
-                    if (isFiltered) {
-                        TextButton(onClick = onResetFilters) {
-                            Text(
-                                text = "إعادة التعيين",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        if (groupedTransactions.isNotEmpty()) {
+                            val allCollapsed = groupedTransactions.keys.all { it in collapsedDates }
+                            TextButton(
+                                onClick = {
+                                    collapsedDates = if (allCollapsed) emptySet() else groupedTransactions.keys.toSet()
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = if (allCollapsed) Icons.Default.UnfoldMore else Icons.Default.UnfoldLess,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (allCollapsed) "توسيع الكل" else "طي الكل",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+
+                        val isFiltered = uiState.selectedCategoryId != null ||
+                                uiState.selectedFilterIndex != 0 ||
+                                uiState.selectedDatePeriod != DateRangeFilter.ALL ||
+                                uiState.searchQuery.isNotBlank()
+
+                        if (isFiltered) {
+                            TextButton(onClick = onResetFilters) {
+                                Text(
+                                    text = "إعادة التعيين",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 }
@@ -477,35 +511,71 @@ fun TransactionsHistoryContent(
                 }
             } else {
                 groupedTransactions.forEach { (date, transactions) ->
+                    val isCollapsed = collapsedDates.contains(date)
+
                     item(key = "date_header_$date", contentType = "date_header") {
+                        val formattedDateWithDay = remember(date) {
+                            try {
+                                val parsed = java.time.LocalDate.parse(date)
+                                FormatUtils.formatArabicDate(parsed, includeDayOfWeek = true)
+                            } catch (e: Exception) {
+                                date
+                            }
+                        }
+
                         Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    collapsedDates = if (isCollapsed) {
+                                        collapsedDates - date
+                                    } else {
+                                        collapsedDates + date
+                                    }
+                                }
                                 .padding(top = 10.dp, bottom = 4.dp)
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
                                     Icon(
-                                        imageVector = Icons.Default.CalendarToday,
-                                        contentDescription = null,
+                                        imageVector = if (isCollapsed) Icons.Default.ExpandMore else Icons.Default.ExpandLess,
+                                        contentDescription = if (isCollapsed) "توسيع اليوم" else "طي اليوم",
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(15.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
-                                        text = date,
+                                        text = formattedDateWithDay,
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                                    ) {
+                                        Text(
+                                            text = "${transactions.size} عمليات",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontSize = 10.sp,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
                                 }
                                 val dailyExpenseSum = transactions
                                     .filter { it.type == TransactionType.EXPENSE }
@@ -538,15 +608,17 @@ fun TransactionsHistoryContent(
                         }
                     }
 
-                    items(
-                        items = transactions,
-                        key = { it.id },
-                        contentType = { "transaction_row" }
-                    ) { transaction ->
-                        RealTransactionRowItem(
-                            transaction = transaction,
-                            onClick = { selectedTransactionForDetails = transaction }
-                        )
+                    if (!isCollapsed) {
+                        items(
+                            items = transactions,
+                            key = { it.id },
+                            contentType = { "transaction_row" }
+                        ) { transaction ->
+                            RealTransactionRowItem(
+                                transaction = transaction,
+                                onClick = { selectedTransactionForDetails = transaction }
+                            )
+                        }
                     }
                 }
             }

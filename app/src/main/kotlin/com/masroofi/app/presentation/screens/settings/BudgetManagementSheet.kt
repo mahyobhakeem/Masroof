@@ -81,6 +81,7 @@ fun BudgetManagementSheet(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .navigationBarsPadding()
                 .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 16.dp),
             contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp),

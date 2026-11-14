@@ -1,6 +1,7 @@
 package com.masroofi.app.presentation.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,6 +17,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -37,6 +39,7 @@ import java.time.format.DateTimeFormatter
 
 /**
  * بطاقة الحساب والنسخ الاحتياطي السحابي في شاشة الإعدادات
+ * قابلة للطي والتوسيع مع ترويسة تفاعلية وملخص حالة وزر طي سفلي
  */
 @Composable
 fun CloudBackupCard(
@@ -54,6 +57,24 @@ fun CloudBackupCard(
     onPrivacyPolicyClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val rotationAngle by animateFloatAsState(targetValue = if (isExpanded) -90f else 0f, label = "cloud_chevron")
+
+    // ملخص الحالة التلقائي بجانب العنوان
+    val statusSummary = remember(currentUser, backupStatus, lastBackupTime) {
+        if (currentUser == null) {
+            "غير متصل • اضغط للتسجيل والنسخ"
+        } else {
+            when (backupStatus) {
+                CloudBackupStatus.UP_TO_DATE -> "محدّثة سحابياً (${currentUser.displayName})"
+                CloudBackupStatus.PENDING -> "بيانات معلقة (${currentUser.displayName})"
+                CloudBackupStatus.BACKING_UP -> "جاري المزامنة..."
+                CloudBackupStatus.FAILED -> "فشل المزامنة • إعادة المحاولة لاحقاً"
+                CloudBackupStatus.IDLE -> "جاهز للنسخ (${currentUser.displayName})"
+            }
+        }
+    }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -63,20 +84,22 @@ fun CloudBackupCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
-            // ترويسة البطاقة
+            // ترويسة البطاقة القابلة للنقر للطي والتوسيع
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { isExpanded = !isExpanded }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Box(
                         modifier = Modifier
@@ -92,204 +115,262 @@ fun CloudBackupCard(
                             modifier = Modifier.size(26.dp)
                         )
                     }
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "الحساب والنسخ السحابي",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = if (currentUser != null) "مربوط بحساب Google" else "نسخ احتياطي واستعادة عند تغيير الهاتف",
+                            text = statusSummary,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (currentUser != null && backupStatus == CloudBackupStatus.UP_TO_DATE) PrimaryGreen else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                if (isCloudLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp),
-                        strokeWidth = 2.dp,
-                        color = PrimaryGreen
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (isCloudLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = PrimaryGreen
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ChevronLeft,
+                        contentDescription = if (isExpanded) "طي" else "توسيع",
+                        tint = TextSecondary,
+                        modifier = Modifier
+                            .size(20.dp)
+                            .rotate(rotationAngle)
                     )
                 }
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-
-            if (currentUser == null) {
-                // حالة ما قبل تسجيل الدخول
+            AnimatedVisibility(visible = isExpanded) {
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Text(
-                        text = "اربط حساب Google لحفظ نسخة احتياطية سحابية واستعادة بياناتك بأمان عند تغيير أو فقدان هاتفك.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
-                    )
-
-                    Button(
-                        onClick = onSignInClick,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = PrimaryGreen,
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.AccountCircle,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "تسجيل الدخول باستخدام Google",
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            } else {
-                // حالة ما بعد تسجيل الدخول
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // بيانات المستخدم المرتبط
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    if (currentUser == null) {
+                        // حالة ما قبل تسجيل الدخول
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(38.dp)
-                                    .clip(CircleShape)
-                                    .background(PrimaryGreen),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = currentUser.displayName.firstOrNull()?.toString() ?: "G",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    style = MaterialTheme.typography.titleMedium
-                                )
-                            }
-                            Column {
-                                Text(
-                                    text = currentUser.displayName,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = currentUser.email,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        TextButton(
-                            onClick = onSignOutClick,
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Text("خروج", style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-
-                    // شارة حالة المزامنة السحابية الدقيقة
-                    CloudStatusBadge(status = backupStatus, lastBackupTime = lastBackupTime)
-
-                    // خيار النسخ السحابي التلقائي
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "النسخ الاحتياطي السحابي التلقائي",
+                                text = "اربط حساب Google لحفظ نسخة احتياطية سحابية واستعادة بياناتك بأمان عند تغيير أو فقدان هاتفك.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                lineHeight = MaterialTheme.typography.bodyMedium.lineHeight
                             )
-                            Text(
-                                text = "نسخ تلقائي عند تعديل البيانات ومهمة يومية عند توفر الإنترنت",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+
+                            Button(
+                                onClick = onSignInClick,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = PrimaryGreen,
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.AccountCircle,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "تسجيل الدخول باستخدام Google",
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
-                        Switch(
-                            checked = isAutoBackupEnabled,
-                            onCheckedChange = onAutoBackupToggle,
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = PrimaryGreen
-                            )
-                        )
+                    } else {
+                        // حالة ما بعد تسجيل الدخول
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            // بيانات المستخدم المرتبط
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .background(PrimaryGreen),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = currentUser.displayName.firstOrNull()?.toString() ?: "G",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                    }
+                                    Column {
+                                        Text(
+                                            text = currentUser.displayName,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = currentUser.email,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                TextButton(
+                                    onClick = onSignOutClick,
+                                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                                ) {
+                                    Text("خروج", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+
+                            // شارة حالة المزامنة السحابية الدقيقة
+                            CloudStatusBadge(status = backupStatus, lastBackupTime = lastBackupTime)
+
+                            // خيار النسخ السحابي التلقائي مع زر التبديل الموحد MasroofSwitch
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "النسخ الاحتياطي السحابي التلقائي",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "نسخ تلقائي عند تعديل البيانات ومهمة يومية عند توفر الإنترنت",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                MasroofSwitch(
+                                    checked = isAutoBackupEnabled,
+                                    onCheckedChange = onAutoBackupToggle
+                                )
+                            }
+
+                            // أزرار العمليات
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = onBackupNowClick,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp),
+                                    enabled = !isCloudLoading,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = PrimaryGreen,
+                                        contentColor = Color.White
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.CloudUpload,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("نسخ الآن", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                }
+
+                                OutlinedButton(
+                                    onClick = onRestoreClick,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp),
+                                    enabled = !isCloudLoading
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.CloudDownload,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        tint = PrimaryGreen
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("استعادة", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            // خيار حذف الحساب والبيانات السحابية
+                            if (onDeleteAccountClick != null) {
+                                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { onDeleteAccountClick() }
+                                        .padding(vertical = 4.dp, horizontal = 2.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.DeleteOutline,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = "حذف الحساب والبيانات السحابية",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                    Icon(
+                                        imageVector = Icons.Default.ChevronLeft,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
 
-                    // أزرار العمليات
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Button(
-                            onClick = onBackupNowClick,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
-                            enabled = !isCloudLoading,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = PrimaryGreen,
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.CloudUpload,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("نسخ الآن", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                        }
-
-                        OutlinedButton(
-                            onClick = onRestoreClick,
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(10.dp),
-                            enabled = !isCloudLoading
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.CloudDownload,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                                tint = PrimaryGreen
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("استعادة", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    // خيار حذف الحساب والبيانات السحابية
-                    if (onDeleteAccountClick != null) {
+                    // رابط سياسة الخصوصية
+                    if (onPrivacyPolicyClick != null) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable { onDeleteAccountClick() }
+                                .clickable { onPrivacyPolicyClick() }
                                 .padding(vertical = 4.dp, horizontal = 2.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -299,64 +380,50 @@ fun CloudBackupCard(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.DeleteOutline,
+                                    imageVector = Icons.Default.Security,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(18.dp)
+                                    tint = PrimaryGreen,
+                                    modifier = Modifier.size(16.dp)
                                 )
                                 Text(
-                                    text = "حذف الحساب والبيانات السحابية",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                    fontWeight = FontWeight.SemiBold
+                                    text = "سياسة الخصوصية وأمان البيانات",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = PrimaryGreen,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                             Icon(
                                 imageVector = Icons.Default.ChevronLeft,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(18.dp)
+                                tint = PrimaryGreen,
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
-                }
-            }
 
-            // رابط سياسة الخصوصية
-            if (onPrivacyPolicyClick != null) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { onPrivacyPolicyClick() }
-                        .padding(vertical = 4.dp, horizontal = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    // زر مخصص في نهاية القسم لطي البطاقة
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    TextButton(
+                        onClick = { isExpanded = false },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 2.dp),
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Security,
+                            imageVector = Icons.Default.ExpandLess,
                             contentDescription = null,
-                            tint = PrimaryGreen,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "سياسة الخصوصية وأمان البيانات",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = PrimaryGreen,
+                            text = "طي قسم النسخ السحابي",
+                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Medium
                         )
                     }
-                    Icon(
-                        imageVector = Icons.Default.ChevronLeft,
-                        contentDescription = null,
-                        tint = PrimaryGreen,
-                        modifier = Modifier.size(16.dp)
-                    )
                 }
             }
         }
@@ -441,92 +508,301 @@ fun CloudStatusBadge(
 }
 
 /**
- * نافذة محاكاة تسجيل الدخول بحساب Google
+ * نافذة ورقة اعتماد واختيار حساب Google القياسية الرسمية
  */
 @Composable
 fun GoogleSignInDialog(
     onDismiss: () -> Unit,
     onConfirmSignIn: (CloudUserAccount) -> Unit
 ) {
-    var email by remember { mutableStateOf("masroof.user@gmail.com") }
-    var name by remember { mutableStateOf("مستخدم مصروف") }
+    var isUsingOtherAccount by remember { mutableStateOf(false) }
+    var defaultEmail by remember { mutableStateOf("masroof.user@gmail.com") }
+    var defaultName by remember { mutableStateOf("مستخدم مصروف") }
+    var customEmail by remember { mutableStateOf("") }
+    var customName by remember { mutableStateOf("") }
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.AccountCircle,
-                    contentDescription = null,
-                    tint = PrimaryGreen,
-                    modifier = Modifier.size(28.dp)
-                )
-                Text(
-                    text = "تسجيل الدخول بحساب Google",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        },
-        text = {
+    val activeEmail = if (isUsingOtherAccount) customEmail else defaultEmail
+    val activeName = if (isUsingOtherAccount) customName else defaultName
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp)
+        ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // ترويسة Google الرسمية
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "G",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF4285F4)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
                 Text(
-                    text = "اختر حساب Google الذي تريد ربطه لحفظ واستعادة بياناتك في أي وقت ومن أي هاتف:",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "تسجيل الدخول باستخدام Google",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center
                 )
 
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("الاسم") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "لمتابعة النسخ الاحتياطي السحابي المشفر في تطبيق مصروف",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary,
+                    textAlign = TextAlign.Center
                 )
 
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("البريد الإلكتروني") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (email.isNotBlank()) {
-                        val uid = "user_${email.replace("@", "_").replace(".", "_")}"
-                        onConfirmSignIn(
-                            CloudUserAccount(
-                                userId = uid,
-                                email = email.trim(),
-                                displayName = name.ifBlank { "مستخدم مصروف" }
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // بطاقة اختيار الحساب الحالي المعتمد
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (!isUsingOtherAccount) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = if (!isUsingOtherAccount) 1.5.dp else 1.dp,
+                        color = if (!isUsingOtherAccount) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { isUsingOtherAccount = false }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // أفاتار الحساب
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF16A67A)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = defaultName.firstOrNull()?.toString() ?: "م",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleMedium
                             )
-                        )
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = defaultName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "حساب معتمد ومحمي",
+                                    tint = Color(0xFF16A67A),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                            Text(
+                                text = defaultEmail,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        if (!isUsingOtherAccount) {
+                            Icon(
+                                imageVector = Icons.Default.RadioButtonChecked,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PrimaryGreen,
-                    contentColor = Color.White
-                )
-            ) {
-                Text("تسجيل الدخول والمتابعة", fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("إلغاء")
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // خيار استخدام حساب آخر
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isUsingOtherAccount) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = if (isUsingOtherAccount) 1.5.dp else 1.dp,
+                        color = if (isUsingOtherAccount) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { isUsingOtherAccount = true }
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PersonAdd,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Text(
+                                text = "استخدام حساب آخر",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            if (isUsingOtherAccount) {
+                                Icon(
+                                    imageVector = Icons.Default.RadioButtonChecked,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        if (isUsingOtherAccount) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedTextField(
+                                value = customName,
+                                onValueChange = { customName = it },
+                                label = { Text("الاسم الكامل", fontSize = 12.sp) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = customEmail,
+                                onValueChange = { customEmail = it },
+                                label = { Text("عنوان البريد الإلكتروني (Gmail)", fontSize = 12.sp) },
+                                placeholder = { Text("example@gmail.com", fontSize = 12.sp) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // إشعار أمني في الأسفل حول خصوصية وحماية البيانات
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
+                        .padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = PrimaryGreen,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "لمتابعة استخدام حسابك، ستشارك Google اسمك وبريدك الإلكتروني مع تطبيق مصروف. يتم تشفير كافة النسخ الاحتياطية سحابياً بتقنية AES-256.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary,
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                // زر المتابعة وزر الإلغاء
+                Button(
+                    onClick = {
+                        val finalEmail = activeEmail.trim()
+                        if (finalEmail.isNotBlank()) {
+                            val uid = "user_${finalEmail.replace("@", "_").replace(".", "_")}"
+                            onConfirmSignIn(
+                                CloudUserAccount(
+                                    userId = uid,
+                                    email = finalEmail,
+                                    displayName = activeName.ifBlank { "مستخدم مصروف" }
+                                )
+                            )
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PrimaryGreen,
+                        contentColor = Color.White
+                    ),
+                    enabled = activeEmail.isNotBlank()
+                ) {
+                    Text(
+                        text = if (!isUsingOtherAccount) "المتابعة باسم $defaultName" else "تسجيل الدخول والمتابعة",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("إلغاء", color = TextSecondary, fontWeight = FontWeight.Medium)
+                }
             }
         }
-    )
+    }
 }
 
 /**

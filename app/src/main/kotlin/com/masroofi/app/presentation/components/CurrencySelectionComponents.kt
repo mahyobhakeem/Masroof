@@ -56,6 +56,8 @@ fun CurrencySelectionSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 28.dp)
         ) {

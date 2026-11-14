@@ -248,6 +248,7 @@ fun MasroofiBottomNavigationBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .height(68.dp)
                 .padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceAround,
