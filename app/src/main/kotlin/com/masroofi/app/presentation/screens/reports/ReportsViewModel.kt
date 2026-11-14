@@ -1,5 +1,6 @@
 package com.masroofi.app.presentation.screens.reports
 
+import android.content.Context
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -8,12 +9,19 @@ import com.masroofi.app.domain.calculations.CategoryExpenseSummary
 import com.masroofi.app.domain.calculations.FinancialCalculator
 import com.masroofi.app.domain.calculations.MonthlyReportData
 import com.masroofi.app.domain.model.ReportPeriodMode
+import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.domain.repository.TransactionRepository
 import com.masroofi.app.domain.usecase.GetMonthlyReportUseCase
+import com.masroofi.app.presentation.components.PdfPeriodMode
+import com.masroofi.app.presentation.components.TransactionTypeFilter
 import com.masroofi.app.utils.FormatUtils
+import com.masroofi.app.utils.PdfReportExporter
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -233,6 +241,83 @@ class ReportsViewModel(
      */
     fun setSelectedYearMonth(yearMonth: YearMonth) {
         _selectedYearMonth.value = yearMonth
+    }
+
+    /**
+     * تصدير تقرير PDF مالي مخصص من شاشة التقارير
+     */
+    fun exportPdfReport(
+        context: Context,
+        periodMode: PdfPeriodMode,
+        specificDate: LocalDate?,
+        customStartDate: LocalDate?,
+        customEndDate: LocalDate?,
+        typeFilter: TransactionTypeFilter,
+        currencySymbol: String,
+        onSuccess: (File) -> Unit
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val allTransactions = transactionRepository.getAllTransactions().first()
+
+                val (filteredByDate, periodLabel) = when (periodMode) {
+                    PdfPeriodMode.TODAY -> {
+                        val todayStr = LocalDate.now().toString()
+                        allTransactions.filter { it.transactionDate == todayStr } to "اليوم (${FormatUtils.formatArabicDate(LocalDate.now(), true)})"
+                    }
+                    PdfPeriodMode.SPECIFIC_DAY -> {
+                        val day = specificDate ?: LocalDate.now()
+                        val dayStr = day.toString()
+                        allTransactions.filter { it.transactionDate == dayStr } to "يوم ${FormatUtils.formatArabicDate(day, true)}"
+                    }
+                    PdfPeriodMode.THIS_WEEK -> {
+                        val (start, end) = FormatUtils.getWeekRangeSaturday(LocalDate.now())
+                        allTransactions.filter {
+                            val parsed = try { it.toLocalDate() } catch (_: Exception) { null }
+                            parsed != null && !parsed.isBefore(start) && !parsed.isAfter(end)
+                        } to "هذا الأسبوع (${FormatUtils.formatDateRange(start, end)})"
+                    }
+                    PdfPeriodMode.THIS_MONTH -> {
+                        val ym = YearMonth.now()
+                        allTransactions.filter { it.transactionDate.startsWith(ym.toString()) } to "شهر ${FormatUtils.formatMonthName(ym.monthValue)} ${ym.year}"
+                    }
+                    PdfPeriodMode.PREVIOUS_MONTH -> {
+                        val prevYm = YearMonth.now().minusMonths(1)
+                        allTransactions.filter { it.transactionDate.startsWith(prevYm.toString()) } to "شهر ${FormatUtils.formatMonthName(prevYm.monthValue)} ${prevYm.year}"
+                    }
+                    PdfPeriodMode.CUSTOM_RANGE -> {
+                        val start = customStartDate ?: LocalDate.now().minusDays(30)
+                        val end = customEndDate ?: LocalDate.now()
+                        allTransactions.filter {
+                            val parsed = try { it.toLocalDate() } catch (_: Exception) { null }
+                            parsed != null && !parsed.isBefore(start) && !parsed.isAfter(end)
+                        } to "الفترة من ${FormatUtils.formatArabicDate(start)} إلى ${FormatUtils.formatArabicDate(end)}"
+                    }
+                }
+
+                val finalTransactions = when (typeFilter) {
+                    TransactionTypeFilter.ALL -> filteredByDate
+                    TransactionTypeFilter.EXPENSE_ONLY -> filteredByDate.filter { it.type == TransactionType.EXPENSE }
+                    TransactionTypeFilter.INCOME_ONLY -> filteredByDate.filter { it.type == TransactionType.INCOME }
+                }.sortedByDescending { it.transactionDate }
+
+                val pdfFile = PdfReportExporter.generatePdfReport(
+                    context = context,
+                    transactions = finalTransactions,
+                    periodTitle = periodLabel,
+                    currencySymbol = currencySymbol,
+                    reportTitle = "تقرير العمليات المالية ($periodLabel)"
+                )
+
+                try {
+                    PdfReportExporter.openPdf(context, pdfFile)
+                } catch (_: Exception) {}
+
+                withContext(Dispatchers.Main) {
+                    onSuccess(pdfFile)
+                }
+            } catch (_: Exception) {}
+        }
     }
 }
 

@@ -1,7 +1,12 @@
 package com.masroofi.app.data.backup
 
+import android.content.ContentValues
 import android.content.Context
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import java.io.File
+import java.io.OutputStream
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -73,5 +78,46 @@ object BackupFileManager {
             writer.write(csvContent)
         }
         return targetFile
+    }
+
+    /**
+     * حفظ نسخة احتياطية إضافية في مجلد التنزيلات العام Downloads/Masroof
+     * يعيد المسار الواضح للملف المحفوظ لعرضه للمستخدم
+     */
+    fun saveBackupToDownloads(context: Context, jsonContent: String, customFileName: String? = null): String {
+        val timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
+        val fileName = customFileName ?: "masroof_backup_$timeStamp.json"
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "application/json")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Masroof")
+                }
+                val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                if (uri != null) {
+                    context.contentResolver.openOutputStream(uri)?.use { stream ->
+                        stream.bufferedWriter(Charsets.UTF_8).use { it.write(jsonContent) }
+                    }
+                    return "Downloads/Masroof/$fileName"
+                }
+            }
+        } catch (_: Exception) {
+            // تجاهل والانتقال للمسار المباشر إن تعذر
+        }
+
+        return try {
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val masroofDir = File(downloadsDir, "Masroof")
+            if (!masroofDir.exists()) {
+                masroofDir.mkdirs()
+            }
+            val targetFile = File(masroofDir, fileName)
+            targetFile.bufferedWriter(Charsets.UTF_8).use { it.write(jsonContent) }
+            targetFile.absolutePath
+        } catch (_: Exception) {
+            "Downloads/Masroof/$fileName"
+        }
     }
 }

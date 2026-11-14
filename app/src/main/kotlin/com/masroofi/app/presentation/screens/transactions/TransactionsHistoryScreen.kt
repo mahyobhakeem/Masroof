@@ -38,6 +38,7 @@ import com.masroofi.app.presentation.components.CategoryIconHelper
 import com.masroofi.app.presentation.components.LocalAppCurrency
 import com.masroofi.app.presentation.components.MasroofDatePickerDialog
 import com.masroofi.app.presentation.components.MasroofDateRangeDialog
+import com.masroofi.app.presentation.components.MasroofTopHeaderBar
 import com.masroofi.app.presentation.components.MasroofiTextField
 import com.masroofi.app.presentation.theme.*
 import com.masroofi.app.utils.FormatUtils
@@ -135,42 +136,37 @@ fun TransactionsHistoryContent(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { innerPadding ->
-        LazyColumn(
+        Column(
             modifier = modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp)
         ) {
-            // ترويسة الشاشة
-            item {
-                Text(
-                    text = "سجل العمليات",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "عرض وتصفية وبحث جميع العمليات المالية في سجل موحد",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+            MasroofTopHeaderBar(
+                title = "سجل العمليات",
+                subtitle = "عرض وتصفية وبحث جميع المعاملات المالية",
+                icon = Icons.AutoMirrored.Filled.ReceiptLong
+            )
 
-            // بطاقة ملخص النتائج المصفاة
-            item {
-                FilteredResultsSummaryCard(
-                    totalExpenses = uiState.totalExpenses,
-                    totalIncome = uiState.totalIncome,
-                    netTotal = uiState.netTotal,
-                    count = uiState.transactions.size
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(top = 10.dp, bottom = 24.dp)
+            ) {
+                // بطاقة ملخص النتائج المصفاة
+                item {
+                    FilteredResultsSummaryCard(
+                        totalExpenses = uiState.totalExpenses,
+                        totalIncome = uiState.totalIncome,
+                        netTotal = uiState.netTotal,
+                        count = uiState.transactions.size
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
 
             // شريط البحث المعتمد مع زر المسح
             item {
@@ -637,6 +633,7 @@ fun TransactionsHistoryContent(
                     }
                 }
             }
+        }
         }
     }
 

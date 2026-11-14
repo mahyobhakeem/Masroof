@@ -420,6 +420,21 @@ class SettingsViewModelTest {
         assertFalse(viewModel.uiState.value.isCloudRestoreConfirmationOpen)
         assertNull(viewModel.uiState.value.pendingCloudRestoreMetadata)
     }
+
+    @Test
+    fun `test pdf export dialog open close and state`() = runTest {
+        assertFalse(viewModel.uiState.value.isPdfExportDialogOpen)
+        assertNull(viewModel.uiState.value.generatedPdfFile)
+
+        viewModel.openPdfExportDialog()
+        assertTrue(viewModel.uiState.value.isPdfExportDialogOpen)
+
+        viewModel.closePdfExportDialog()
+        assertFalse(viewModel.uiState.value.isPdfExportDialogOpen)
+
+        viewModel.dismissGeneratedPdfDialog()
+        assertNull(viewModel.uiState.value.generatedPdfFile)
+    }
 }
 
 /**

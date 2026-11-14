@@ -153,6 +153,7 @@ fun MasroofiApp(
         Scaffold(
             modifier = modifier.fillMaxSize(),
             containerColor = MaterialTheme.colorScheme.background,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
                 if (!showAddTransactionSheet) {
                     MasroofiBottomNavigationBar(
@@ -169,7 +170,7 @@ fun MasroofiApp(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .padding(bottom = innerPadding.calculateBottomPadding())
             ) {
                 AnimatedContent(
                     targetState = currentScreen,

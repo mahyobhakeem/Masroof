@@ -31,7 +31,6 @@ import com.masroofi.app.presentation.components.ChangePasswordDialog
 import com.masroofi.app.presentation.components.CloudAccountAuthSheet
 import com.masroofi.app.presentation.components.CloudBackupCard
 import com.masroofi.app.presentation.components.CloudBackupFoundAutoPromptDialog
-import com.masroofi.app.presentation.components.CloudCredentialsDialog
 import com.masroofi.app.presentation.components.CloudRestoreConfirmationDialog
 import com.masroofi.app.presentation.components.CurrencyChangeConfirmationDialog
 import com.masroofi.app.presentation.components.CurrencySelectionSheet
@@ -39,8 +38,12 @@ import com.masroofi.app.presentation.components.DeleteAccountConfirmationDialog
 import com.masroofi.app.presentation.components.GoogleSignInDialog
 import com.masroofi.app.presentation.components.PrivacyPolicyDialog
 import com.masroofi.app.presentation.components.LocalAppCurrency
+import com.masroofi.app.presentation.components.MasroofTopHeaderBar
 import com.masroofi.app.presentation.components.MasroofiExpandableCard
 import com.masroofi.app.presentation.components.MasroofiItemCard
+import com.masroofi.app.presentation.components.PdfExportDialog
+import com.masroofi.app.presentation.components.PdfGeneratedSuccessDialog
+import com.masroofi.app.utils.PdfReportExporter
 import com.masroofi.app.presentation.theme.*
 import com.masroofi.app.utils.formatNumber
 import java.io.File
@@ -65,7 +68,11 @@ fun SettingsScreen(
     val backupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
-        uri?.let { viewModel.exportBackupToUri(context, it) }
+        if (uri != null) {
+            viewModel.exportBackupToUri(context, uri)
+        } else {
+            viewModel.createBackupLocally(context)
+        }
     }
 
     val restoreLauncher = rememberLauncherForActivityResult(
@@ -100,7 +107,8 @@ fun SettingsScreen(
         onCloseAboutDialog = { viewModel.closeAboutDialog() },
         onClearMessages = { viewModel.clearMessages() },
         onTriggerBackup = {
-            viewModel.createBackupLocally(context)
+            val dateStr = java.time.LocalDate.now().toString()
+            backupLauncher.launch("masroof_backup_$dateStr.json")
         },
         onTriggerRestore = {
             viewModel.openRestoreSelection(context)
@@ -131,8 +139,44 @@ fun SettingsScreen(
         onCloseDeleteAccountDialog = { viewModel.closeDeleteAccountDialog() },
         onConfirmDeleteAccount = { wipe -> viewModel.deleteAccountAndCloudData(wipe) },
         onOpenChangePasswordDialog = { viewModel.openChangePasswordDialog() },
+        onTriggerPdfExport = { viewModel.openPdfExportDialog() },
         modifier = modifier
     )
+
+    val activeCurrency = LocalAppCurrency.current
+    if (uiState.isPdfExportDialogOpen) {
+        PdfExportDialog(
+            onDismiss = { viewModel.closePdfExportDialog() },
+            onConfirmExport = { periodMode, specificDate, customStart, customEnd, typeFilter ->
+                viewModel.exportPdfReport(
+                    context = context,
+                    periodMode = periodMode,
+                    specificDate = specificDate,
+                    customStartDate = customStart,
+                    customEndDate = customEnd,
+                    typeFilter = typeFilter,
+                    currencySymbol = activeCurrency.symbolArabic
+                )
+            }
+        )
+    }
+
+    uiState.generatedPdfFile?.let { pdfFile ->
+        PdfGeneratedSuccessDialog(
+            pdfFile = pdfFile,
+            onDismiss = { viewModel.dismissGeneratedPdfDialog() },
+            onOpen = {
+                try {
+                    PdfReportExporter.openPdf(context, pdfFile)
+                } catch (_: Exception) {}
+            },
+            onShare = {
+                try {
+                    PdfReportExporter.sharePdf(context, pdfFile)
+                } catch (_: Exception) {}
+            }
+        )
+    }
 
     if (uiState.showCloudAuthSheet || uiState.showGoogleSignInDialog) {
         CloudAccountAuthSheet(
@@ -140,8 +184,7 @@ fun SettingsScreen(
             onDismiss = { viewModel.dismissCloudAuthSheet() },
             onSignUp = { name, email, pass -> viewModel.signUpWithEmail(name, email, pass) },
             onSignIn = { email, pass -> viewModel.signInWithEmail(email, pass) },
-            onForgotPassword = { email -> viewModel.sendPasswordResetEmail(email) },
-            onOpenCloudConfig = { viewModel.openCloudCredentialsDialog() }
+            onForgotPassword = { email -> viewModel.sendPasswordResetEmail(email) }
         )
     }
 
@@ -150,15 +193,6 @@ fun SettingsScreen(
             isLoading = uiState.isCloudLoading,
             onDismiss = { viewModel.dismissChangePasswordDialog() },
             onConfirmChange = { newPass -> viewModel.changePassword(newPass) }
-        )
-    }
-
-    if (uiState.showCloudCredentialsDialog) {
-        CloudCredentialsDialog(
-            currentApiKey = "",
-            currentProjectId = "",
-            onDismiss = { viewModel.dismissCloudCredentialsDialog() },
-            onSave = { key, project -> viewModel.saveCloudCredentials(key, project) }
         )
     }
 
@@ -240,6 +274,7 @@ fun SettingsContent(
     onTriggerBackup: () -> Unit = {},
     onTriggerRestore: () -> Unit = {},
     onTriggerCsvExport: () -> Unit = {},
+    onTriggerPdfExport: () -> Unit = {},
     onSelectExternalRestore: () -> Unit = {},
     onSelectLocalRestore: (File) -> Unit = {},
     onCloseRestoreSelection: () -> Unit = {},
@@ -291,29 +326,24 @@ fun SettingsContent(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // ترويسة الشاشة
-            item {
-                Text(
-                    text = "الإعدادات",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "تخصيص المظهر وإدارة الميزانيات والتصنيفات",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-            }
+            MasroofTopHeaderBar(
+                title = "الإعدادات",
+                subtitle = "تخصيص المظهر وإدارة الميزانيات والنسخ الاحتياطي",
+                icon = Icons.Default.Settings
+            )
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(top = 10.dp, bottom = 96.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
 
             // 1. بطاقة مظهر التطبيق (3 أوضاع: فاتح، داكن، تلقائي)
             item {
@@ -630,6 +660,53 @@ fun SettingsContent(
                         )
                     }
 
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.8.dp)
+
+                    // د) تصدير تقرير مالي PDF
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onTriggerPdfExport() }
+                            .padding(vertical = 10.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(PrimaryGreen.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.PictureAsPdf,
+                                contentDescription = null,
+                                tint = PrimaryGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "تصدير تقرير مالي (PDF)",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "توليد مستند مالي منسق للمصروفات والإيرادات والمشاركة",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronLeft,
+                            contentDescription = null,
+                            tint = TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
                     if (uiState.localBackupFiles.isNotEmpty()) {
                         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), thickness = 0.8.dp)
                         Row(
@@ -699,6 +776,7 @@ fun SettingsContent(
                     )
                 }
             }
+        }
         }
 
         SnackbarHost(

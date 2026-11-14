@@ -43,6 +43,7 @@ import com.masroofi.app.presentation.components.CategoryIconHelper
 import com.masroofi.app.presentation.components.LocalAppCurrency
 import com.masroofi.app.presentation.components.MasroofDatePickerDialog
 import com.masroofi.app.presentation.components.MasroofDateRangeDialog
+import com.masroofi.app.presentation.components.MasroofTopHeaderBar
 import com.masroofi.app.presentation.components.MasroofiItemCard
 import com.masroofi.app.presentation.components.TimePeriodSegmentedSwitch
 import com.masroofi.app.presentation.screens.transactions.TransactionDetailsBottomSheet
@@ -227,39 +228,31 @@ fun HomeScreenContent(
     onNextMonth: () -> Unit = onNext,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(
+    Column(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp)
     ) {
-        // 1. الترويسة العلوية الثابتة
-        item {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "مصروف | Masroof",
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = "إدارة المصروفات والميزانية الشخصية",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-            }
-            Spacer(modifier = Modifier.height(14.dp))
-        }
+        MasroofTopHeaderBar(
+            title = "مصروف | Masroof",
+            subtitle = "إدارة المصروفات والميزانية الشخصية",
+            icon = Icons.Default.AccountBalanceWallet
+        )
 
-        // 2. شريط التبديل الزمني (اليوم / الأسبوع / الشهر / فترة مخصصة)
-        item {
-            TimePeriodSegmentedSwitch(
-                selectedMode = uiState.selectedPeriodMode,
-                onModeSelected = onPeriodModeSelect
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-        }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(top = 10.dp, bottom = 24.dp)
+        ) {
+            // 1. شريط التبديل الزمني (اليوم / الأسبوع / الشهر / فترة مخصصة)
+            item {
+                TimePeriodSegmentedSwitch(
+                    selectedMode = uiState.selectedPeriodMode,
+                    onModeSelected = onPeriodModeSelect
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
 
         // 3. شريط التنقل الزمني والتاريخ التفاعلي
         item {
@@ -384,6 +377,7 @@ fun HomeScreenContent(
             }
         }
     }
+}
 }
 
 /**

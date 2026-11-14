@@ -49,8 +49,7 @@ fun CloudAccountAuthSheet(
     onDismiss: () -> Unit,
     onSignUp: (name: String, email: String, pass: String) -> Unit,
     onSignIn: (email: String, pass: String) -> Unit,
-    onForgotPassword: (email: String) -> Unit,
-    onOpenCloudConfig: (() -> Unit)? = null
+    onForgotPassword: (email: String) -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) } // 0: إنشاء حساب، 1: تسجيل الدخول
     val focusManager = LocalFocusManager.current
@@ -142,20 +141,16 @@ fun CloudAccountAuthSheet(
                         )
                     }
 
-                    if (onOpenCloudConfig != null) {
-                        IconButton(
-                            onClick = onOpenCloudConfig,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Settings,
-                                contentDescription = "إعدادات الربط السحابي",
-                                tint = TextSecondary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    } else {
-                        Spacer(modifier = Modifier.size(36.dp))
+                    IconButton(
+                        onClick = { if (!isLoading) onDismiss() },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "إغلاق",
+                            tint = TextSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
@@ -722,93 +717,6 @@ fun ChangePasswordDialog(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp),
                         enabled = !isLoading
-                    ) {
-                        Text("إلغاء")
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * نافذة إعدادات مفاتيح السحابة (Firebase Web API Key & Project ID)
- */
-@Composable
-fun CloudCredentialsDialog(
-    currentApiKey: String,
-    currentProjectId: String,
-    onDismiss: () -> Unit,
-    onSave: (apiKey: String, projectId: String) -> Unit
-) {
-    var apiKeyInput by remember { mutableStateOf(currentApiKey) }
-    var projectIdInput by remember { mutableStateOf(currentProjectId) }
-
-    Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
-            modifier = Modifier.fillMaxWidth().padding(16.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "إعدادات الربط مع Firebase",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Text(
-                    text = "يمكنك إدخال مفتاح الويب ومعرّف المشروع الخاصين بك في Firebase لتخصيص سحابتك الخاصة مباشرة:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    OutlinedTextField(
-                        value = projectIdInput,
-                        onValueChange = { projectIdInput = it.trim() },
-                        label = { Text("معرّف المشروع (Project ID)") },
-                        placeholder = { Text("مثال: masroof-cloud") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                }
-
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                    OutlinedTextField(
-                        value = apiKeyInput,
-                        onValueChange = { apiKeyInput = it.trim() },
-                        label = { Text("مفتاح الويب (Web API Key)") },
-                        placeholder = { Text("AIzaSy...") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = { onSave(apiKeyInput, projectIdInput) },
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("حفظ المفاتيح", fontWeight = FontWeight.Bold)
-                    }
-
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
                     ) {
                         Text("إلغاء")
                     }

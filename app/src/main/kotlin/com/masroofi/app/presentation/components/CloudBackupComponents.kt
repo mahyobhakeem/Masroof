@@ -57,7 +57,6 @@ fun CloudBackupCard(
     onDeleteAccountClick: (() -> Unit)? = null,
     onPrivacyPolicyClick: (() -> Unit)? = null,
     onChangePasswordClick: (() -> Unit)? = null,
-    onOpenCloudConfigClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     isExpanded: Boolean? = null,
     onExpandedChange: ((Boolean) -> Unit)? = null

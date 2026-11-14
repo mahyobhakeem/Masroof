@@ -18,6 +18,8 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.PictureAsPdf
+import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,6 +33,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -45,9 +48,14 @@ import com.masroofi.app.presentation.components.CategoryIconHelper
 import com.masroofi.app.presentation.components.LocalAppCurrency
 import com.masroofi.app.presentation.components.MasroofDatePickerDialog
 import com.masroofi.app.presentation.components.MasroofDateRangeDialog
+import com.masroofi.app.presentation.components.MasroofTopHeaderBar
+import com.masroofi.app.presentation.components.PdfExportDialog
+import com.masroofi.app.presentation.components.PdfGeneratedSuccessDialog
 import com.masroofi.app.presentation.theme.*
+import com.masroofi.app.utils.PdfReportExporter
 import com.masroofi.app.utils.formatNumber
 import com.masroofi.app.utils.formatYearMonth
+import java.io.File
 import java.time.YearMonth
 
 private val GridLevels = floatArrayOf(0.0f, 0.33f, 0.66f)
@@ -61,6 +69,10 @@ fun ReportsScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val activeCurrency = LocalAppCurrency.current
+    var isPdfDialogOpen by remember { mutableStateOf(false) }
+    var generatedPdf by remember { mutableStateOf<File?>(null) }
 
     // إدارة زر الرجوع خطوة بخطوة: إلغاء تحديد الشريحة أولاً قبل العودة للرئيسية
     BackHandler(enabled = uiState.selectedCategoryForDetails != null) {
@@ -74,8 +86,45 @@ fun ReportsScreen(
         onNext = { viewModel.selectNext() },
         onDateClick = { viewModel.onDateLabelClick() },
         onCategorySelect = { viewModel.selectCategory(it) },
+        onExportPdfClick = { isPdfDialogOpen = true },
         modifier = modifier
     )
+
+    if (isPdfDialogOpen) {
+        PdfExportDialog(
+            onDismiss = { isPdfDialogOpen = false },
+            onConfirmExport = { periodMode, specificDate, customStart, customEnd, typeFilter ->
+                isPdfDialogOpen = false
+                viewModel.exportPdfReport(
+                    context = context,
+                    periodMode = periodMode,
+                    specificDate = specificDate,
+                    customStartDate = customStart,
+                    customEndDate = customEnd,
+                    typeFilter = typeFilter,
+                    currencySymbol = activeCurrency.symbolArabic,
+                    onSuccess = { file -> generatedPdf = file }
+                )
+            }
+        )
+    }
+
+    generatedPdf?.let { pdfFile ->
+        PdfGeneratedSuccessDialog(
+            pdfFile = pdfFile,
+            onDismiss = { generatedPdf = null },
+            onOpen = {
+                try {
+                    PdfReportExporter.openPdf(context, pdfFile)
+                } catch (_: Exception) {}
+            },
+            onShare = {
+                try {
+                    PdfReportExporter.sharePdf(context, pdfFile)
+                } catch (_: Exception) {}
+            }
+        )
+    }
 
     if (uiState.showDatePicker) {
         MasroofDatePickerDialog(
@@ -108,33 +157,48 @@ fun ReportsContent(
     onNext: () -> Unit = {},
     onDateClick: () -> Unit = {},
     onCategorySelect: (CategoryExpenseSummary?) -> Unit = {},
+    onExportPdfClick: () -> Unit = {},
     onPreviousMonth: () -> Unit = onPrevious,
     onNextMonth: () -> Unit = onNext,
     modifier: Modifier = Modifier
 ) {
     val report = uiState.reportData
 
-    LazyColumn(
+    Column(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 96.dp)
     ) {
-        // ترويسة الشاشة
-        item {
-            ReportsHeader()
-            Spacer(modifier = Modifier.height(14.dp))
-        }
+        MasroofTopHeaderBar(
+            title = "التقارير والإحصائيات",
+            subtitle = "تحليل الأداء المالي والمصروفات بدقة",
+            icon = Icons.Default.PieChart,
+            actions = {
+                IconButton(onClick = onExportPdfClick) {
+                    Icon(
+                        imageVector = Icons.Default.PictureAsPdf,
+                        contentDescription = "تصدير تقرير PDF",
+                        tint = PrimaryGreen,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        )
 
-        // شريط التبديل الزمني (شهري، أسبوعي، يوم محدد، فترة مخصصة)
-        item {
-            ReportPeriodSegmentedSwitch(
-                selectedMode = uiState.periodMode,
-                onModeSelect = onModeSelect
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-        }
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(top = 10.dp, bottom = 24.dp)
+        ) {
+            // شريط التبديل الزمني (شهري، أسبوعي، يوم محدد، فترة مخصصة)
+            item {
+                ReportPeriodSegmentedSwitch(
+                    selectedMode = uiState.periodMode,
+                    onModeSelect = onModeSelect
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
         // شريط التنقل الزمني
         item {
@@ -198,6 +262,7 @@ fun ReportsContent(
             }
         }
     }
+}
 }
 
 /**

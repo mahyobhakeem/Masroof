@@ -646,3 +646,89 @@ fun MasroofDateRangeDialog(
         )
     }
 }
+
+/**
+ * شريط الرأس العلوي الموحد والفخم لتطبيق مصروف (Unified Top Header Bar)
+ * مصمم بنفس خلفية وتأثير شريط التنقل السفلي المعتمد (Bottom Navigation Bar)
+ * مع امتداد علوي متكامل لشريط الحالة (statusBarsPadding) وزوايا سفلية ناعمة وظل أنيق
+ * يعرض في اليمين أيقونة الشاشة في حاوية زمردية ناعمة وبجانبها العنوان والوصف الفرعي
+ */
+@Composable
+fun MasroofTopHeaderBar(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    modifier: Modifier = Modifier,
+    actions: @Composable (RowScope.() -> Unit)? = null
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 8.dp,
+        shadowElevation = 4.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // حاوية الأيقونة الزمردية الفاخرة باليمين (RTL Start)
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(PrimaryGreen.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = PrimaryGreen,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // العنوان الرئيسي والوصف الفرعي بخط واضح وتنسيق فخم
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp),
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextSecondary,
+                        fontSize = 11.5.sp,
+                        lineHeight = 15.sp
+                    )
+                }
+
+                // أزرار الإجراءات التكميلية إن وُجدت
+                if (actions != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End,
+                        content = actions
+                    )
+                }
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
+                thickness = 0.8.dp
+            )
+        }
+    }
+}

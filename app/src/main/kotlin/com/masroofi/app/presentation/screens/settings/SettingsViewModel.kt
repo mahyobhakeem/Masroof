@@ -23,12 +23,17 @@ import com.masroofi.app.domain.model.TransactionType
 import com.masroofi.app.domain.repository.CategoryRepository
 import com.masroofi.app.domain.repository.MonthlyBudgetRepository
 import com.masroofi.app.domain.repository.TransactionRepository
+import com.masroofi.app.presentation.components.PdfPeriodMode
+import com.masroofi.app.presentation.components.TransactionTypeFilter
+import com.masroofi.app.utils.FormatUtils
+import com.masroofi.app.utils.PdfReportExporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.time.LocalDate
 import java.time.YearMonth
 import java.util.UUID
 
@@ -75,6 +80,9 @@ data class SettingsUiState(
     val detectedCloudBackup: CloudBackupMetadata? = null,
     val isPrivacyPolicyOpen: Boolean = false,
     val isDeleteAccountDialogOpen: Boolean = false,
+    val isPdfExportDialogOpen: Boolean = false,
+    val generatedPdfFile: File? = null,
+    val isGeneratingPdf: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null
 ) {
@@ -496,18 +504,19 @@ class SettingsViewModel(
     }
 
     /**
-     * إنشاء وحفظ نسخة احتياطية مباشرة في المجلد المحلي للتطبيق
+     * إنشاء وحفظ نسخة احتياطية مباشرة في المجلد المحلي ومجلد التنزيلات العام
      */
     fun createBackupLocally(context: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val jsonString = backupManager.createBackupJson()
                 val targetFile = BackupFileManager.saveBackupDirectly(context, jsonString)
+                val downloadsPath = BackupFileManager.saveBackupToDownloads(context, jsonString, targetFile.name)
                 val updatedFiles = BackupFileManager.listLocalBackups(context)
                 _uiState.update {
                     it.copy(
                         localBackupFiles = updatedFiles,
-                        successMessage = "تم إنشاء النسخة الاحتياطية بنجاح:\n${targetFile.name}"
+                        successMessage = "تم إنشاء النسخة الاحتياطية بنجاح:\n$downloadsPath"
                     )
                 }
             } catch (e: Exception) {
@@ -519,7 +528,7 @@ class SettingsViewModel(
     }
 
     /**
-     * حفظ النسخة الاحتياطية في المسار الخارجي المختار عبر SAF مع الاحتفاظ بنسخة محلية
+     * حفظ النسخة الاحتياطية في المسار الخارجي المختار عبر منتقي الملفات مع حفظ نسخة في التنزيلات
      */
     fun exportBackupToUri(context: Context, uri: Uri) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -529,13 +538,14 @@ class SettingsViewModel(
                     stream.bufferedWriter(Charsets.UTF_8).use { it.write(jsonString) }
                 } ?: throw IllegalStateException("تعذر فتح مسار الملف المختار")
 
-                BackupFileManager.saveBackupDirectly(context, jsonString)
+                val internalFile = BackupFileManager.saveBackupDirectly(context, jsonString)
+                val downloadsPath = BackupFileManager.saveBackupToDownloads(context, jsonString, internalFile.name)
                 val updatedFiles = BackupFileManager.listLocalBackups(context)
 
                 _uiState.update {
                     it.copy(
                         localBackupFiles = updatedFiles,
-                        successMessage = "تم حفظ النسخة الاحتياطية بنجاح في الموقع المحدد"
+                        successMessage = "تم حفظ النسخة بنجاح في الموقع المحدد، ونسخة إضافية في:\n$downloadsPath"
                     )
                 }
             } catch (e: Exception) {
@@ -632,6 +642,107 @@ class SettingsViewModel(
             } catch (e: Exception) {
                 _uiState.update {
                     it.copy(errorMessage = "فشل تصدير ملف CSV: ${e.localizedMessage ?: e.message}")
+                }
+            }
+        }
+    }
+
+    fun openPdfExportDialog() {
+        _uiState.update { it.copy(isPdfExportDialogOpen = true) }
+    }
+
+    fun closePdfExportDialog() {
+        _uiState.update { it.copy(isPdfExportDialogOpen = false) }
+    }
+
+    fun dismissGeneratedPdfDialog() {
+        _uiState.update { it.copy(generatedPdfFile = null) }
+    }
+
+    /**
+     * تصدير تقرير PDF مالي مخصص ومصنف وفق الفترة والنوع والعملة
+     */
+    fun exportPdfReport(
+        context: Context,
+        periodMode: PdfPeriodMode,
+        specificDate: LocalDate?,
+        customStartDate: LocalDate?,
+        customEndDate: LocalDate?,
+        typeFilter: TransactionTypeFilter,
+        currencySymbol: String
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _uiState.update { it.copy(isGeneratingPdf = true, isPdfExportDialogOpen = false) }
+            try {
+                val allTransactions = transactionRepository.getAllTransactions().first()
+
+                val (filteredByDate, periodLabel) = when (periodMode) {
+                    PdfPeriodMode.TODAY -> {
+                        val todayStr = LocalDate.now().toString()
+                        allTransactions.filter { it.transactionDate == todayStr } to "اليوم (${FormatUtils.formatArabicDate(LocalDate.now(), true)})"
+                    }
+                    PdfPeriodMode.SPECIFIC_DAY -> {
+                        val day = specificDate ?: LocalDate.now()
+                        val dayStr = day.toString()
+                        allTransactions.filter { it.transactionDate == dayStr } to "يوم ${FormatUtils.formatArabicDate(day, true)}"
+                    }
+                    PdfPeriodMode.THIS_WEEK -> {
+                        val (start, end) = FormatUtils.getWeekRangeSaturday(LocalDate.now())
+                        allTransactions.filter {
+                            val parsed = try { it.toLocalDate() } catch (_: Exception) { null }
+                            parsed != null && !parsed.isBefore(start) && !parsed.isAfter(end)
+                        } to "هذا الأسبوع (${FormatUtils.formatDateRange(start, end)})"
+                    }
+                    PdfPeriodMode.THIS_MONTH -> {
+                        val ym = YearMonth.now()
+                        allTransactions.filter { it.transactionDate.startsWith(ym.toString()) } to "شهر ${FormatUtils.formatMonthName(ym.monthValue)} ${ym.year}"
+                    }
+                    PdfPeriodMode.PREVIOUS_MONTH -> {
+                        val prevYm = YearMonth.now().minusMonths(1)
+                        allTransactions.filter { it.transactionDate.startsWith(prevYm.toString()) } to "شهر ${FormatUtils.formatMonthName(prevYm.monthValue)} ${prevYm.year}"
+                    }
+                    PdfPeriodMode.CUSTOM_RANGE -> {
+                        val start = customStartDate ?: LocalDate.now().minusDays(30)
+                        val end = customEndDate ?: LocalDate.now()
+                        allTransactions.filter {
+                            val parsed = try { it.toLocalDate() } catch (_: Exception) { null }
+                            parsed != null && !parsed.isBefore(start) && !parsed.isAfter(end)
+                        } to "الفترة من ${FormatUtils.formatArabicDate(start)} إلى ${FormatUtils.formatArabicDate(end)}"
+                    }
+                }
+
+                val finalTransactions = when (typeFilter) {
+                    TransactionTypeFilter.ALL -> filteredByDate
+                    TransactionTypeFilter.EXPENSE_ONLY -> filteredByDate.filter { it.type == TransactionType.EXPENSE }
+                    TransactionTypeFilter.INCOME_ONLY -> filteredByDate.filter { it.type == TransactionType.INCOME }
+                }.sortedByDescending { it.transactionDate }
+
+                val pdfFile = PdfReportExporter.generatePdfReport(
+                    context = context,
+                    transactions = finalTransactions,
+                    periodTitle = periodLabel,
+                    currencySymbol = currencySymbol,
+                    reportTitle = "تقرير العمليات المالية ($periodLabel)"
+                )
+
+                // فتح الملف مباشرة عبر عارض PDF
+                try {
+                    PdfReportExporter.openPdf(context, pdfFile)
+                } catch (_: Exception) {}
+
+                _uiState.update {
+                    it.copy(
+                        isGeneratingPdf = false,
+                        generatedPdfFile = pdfFile,
+                        successMessage = "تم إنشاء تقرير PDF وحفظه في التنزيلات بنجاح"
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isGeneratingPdf = false,
+                        errorMessage = "فشل تصدير تقرير PDF: ${e.localizedMessage ?: e.message}"
+                    )
                 }
             }
         }
