@@ -2,6 +2,7 @@ package com.masroofi.app.presentation.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -143,7 +144,7 @@ fun MasroofiTextField(
 }
 
 /**
- * بطاقة قائمة أو عنصر إعدادات مستقل بزوايا 12 ومسافة رأسية 10
+ * بطاقة قائمة أو عنصر إعدادات مستقل بهيكل وتصميم فاخر موحد بزوايا 16 ومسافة رأسية 10
  */
 @Composable
 fun MasroofiItemCard(
@@ -159,12 +160,13 @@ fun MasroofiItemCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 5.dp) // لتحقيق مسافة 10dp بين كل بطاقة وأخرى
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
-        shadowElevation = 0.5.dp
+        shadowElevation = 0.5.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
     ) {
         Row(
             modifier = Modifier
@@ -172,11 +174,11 @@ fun MasroofiItemCard(
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // الأيقونة في أقصى اليمين (RTL)
+            // حاوية الأيقونة المربعة بزوايا مستديرة ناعمة موحدة
             Box(
                 modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
                     .background(iconColor.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -184,7 +186,7 @@ fun MasroofiItemCard(
                     imageVector = icon,
                     contentDescription = null,
                     tint = iconColor,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
@@ -226,7 +228,7 @@ fun MasroofiItemCard(
 }
 
 /**
- * بطاقة قابلة للتوسيع مع عناصر فرعية وخط فاصل
+ * بطاقة قابلة للتوسيع بهيكل وتصميم فاخر موحد مع عناصر فرعية وخط فاصل
  */
 @Composable
 fun MasroofiExpandableCard(
@@ -243,11 +245,12 @@ fun MasroofiExpandableCard(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 5.dp)
-            .clip(RoundedCornerShape(12.dp)),
-        shape = RoundedCornerShape(12.dp),
+            .clip(RoundedCornerShape(16.dp)),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
-        shadowElevation = 0.5.dp
+        shadowElevation = 0.5.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f))
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -257,10 +260,11 @@ fun MasroofiExpandableCard(
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // حاوية الأيقونة المربعة بزوايا مستديرة ناعمة موحدة
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(12.dp))
                         .background(iconColor.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
@@ -268,7 +272,7 @@ fun MasroofiExpandableCard(
                         imageVector = icon,
                         contentDescription = null,
                         tint = iconColor,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
 
@@ -299,7 +303,7 @@ fun MasroofiExpandableCard(
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     HorizontalDivider(
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f),
                         thickness = 1.dp
                     )
                     Spacer(modifier = Modifier.height(10.dp))
