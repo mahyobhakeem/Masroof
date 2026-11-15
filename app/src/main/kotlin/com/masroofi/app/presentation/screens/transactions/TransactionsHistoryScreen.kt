@@ -11,7 +11,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AllInclusive
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
@@ -224,39 +228,243 @@ fun TransactionsHistoryContent(
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // شريط تصفية الفترة الزمنية
+            // شريط الفلاتر المنسدلة الأنيق (الوقت والتصنيفات)
             item {
-                LazyRow(
+                var isTimeDropdownExpanded by remember { mutableStateOf(false) }
+                var isCategoryDropdownExpanded by remember { mutableStateOf(false) }
+
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items(
-                        items = DateRangeFilter.values(),
-                        key = { it.name },
-                        contentType = { "date_range_filter" }
-                    ) { period ->
-                        val isSelected = uiState.selectedDatePeriod == period
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { onDatePeriodSelect(period) },
-                            label = {
-                                Text(
-                                    text = period.title,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    // 1. القائمة المنسدلة للوقت (الافتراضي: "كل الأوقات")
+                    Box(modifier = Modifier.weight(1f)) {
+                        val isTimeActive = uiState.selectedDatePeriod != DateRangeFilter.ALL
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable { isTimeDropdownExpanded = true }
+                                .then(
+                                    if (isTimeActive) {
+                                        Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
+                                    } else {
+                                        Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                    }
+                                ),
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isTimeActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DateRange,
+                                        contentDescription = null,
+                                        tint = if (isTimeActive) MaterialTheme.colorScheme.primary else TextSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = uiState.selectedDatePeriod.title,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = if (isTimeActive) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isTimeActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    tint = if (isTimeActive) MaterialTheme.colorScheme.primary else TextSecondary,
+                                    modifier = Modifier.size(20.dp)
                                 )
-                            },
-                            shape = RoundedCornerShape(8.dp),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                                selectedLabelColor = MaterialTheme.colorScheme.primary
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = isTimeDropdownExpanded,
+                            onDismissRequest = { isTimeDropdownExpanded = false },
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            DateRangeFilter.values().forEach { period ->
+                                val isSelected = uiState.selectedDatePeriod == period
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = period.title,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = when (period) {
+                                                DateRangeFilter.ALL -> Icons.Default.AllInclusive
+                                                DateRangeFilter.TODAY, DateRangeFilter.SPECIFIC_DAY -> Icons.Default.CalendarToday
+                                                DateRangeFilter.THIS_WEEK, DateRangeFilter.THIS_MONTH, DateRangeFilter.LAST_MONTH -> Icons.Default.CalendarMonth
+                                                DateRangeFilter.CUSTOM_RANGE -> Icons.Default.DateRange
+                                            },
+                                            contentDescription = null,
+                                            tint = if (isSelected) MaterialTheme.colorScheme.primary else TextSecondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    },
+                                    onClick = {
+                                        isTimeDropdownExpanded = false
+                                        onDatePeriodSelect(period)
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // 2. القائمة المنسدلة للتصنيفات (الافتراضي: "جميع التصنيفات")
+                    Box(modifier = Modifier.weight(1f)) {
+                        val isCatActive = uiState.selectedCategoryId != null
+                        val selectedCategory = remember(uiState.selectedCategoryId, uiState.allCategories) {
+                            uiState.allCategories.find { it.id == uiState.selectedCategoryId }
+                        }
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(46.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable { isCategoryDropdownExpanded = true }
+                                .then(
+                                    if (isCatActive) {
+                                        Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(10.dp))
+                                    } else {
+                                        Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                                    }
+                                ),
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (isCatActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    val icon = if (selectedCategory != null) {
+                                        CategoryIconHelper.getIcon(selectedCategory.iconKey)
+                                    } else {
+                                        Icons.Default.Category
+                                    }
+                                    val iconTint = if (selectedCategory != null) {
+                                        CategoryIconHelper.getColor(selectedCategory.iconKey)
+                                    } else if (isCatActive) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        TextSecondary
+                                    }
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        tint = iconTint,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = selectedCategory?.name ?: "جميع التصنيفات",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = if (isCatActive) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isCatActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    tint = if (isCatActive) MaterialTheme.colorScheme.primary else TextSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = isCategoryDropdownExpanded,
+                            onDismissRequest = { isCategoryDropdownExpanded = false },
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            // خيار "جميع التصنيفات"
+                            val isAllSelected = uiState.selectedCategoryId == null
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "جميع التصنيفات",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isAllSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Category,
+                                        contentDescription = null,
+                                        tint = if (isAllSelected) MaterialTheme.colorScheme.primary else TextSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                },
+                                onClick = {
+                                    isCategoryDropdownExpanded = false
+                                    onCategorySelect(null)
+                                }
                             )
-                        )
+
+                            // التصنيفات النشطة المتاحة
+                            uiState.availableFilterCategories.forEach { category ->
+                                val isSelected = uiState.selectedCategoryId == category.id
+                                val catIcon = CategoryIconHelper.getIcon(category.iconKey)
+                                val catColor = CategoryIconHelper.getColor(category.iconKey)
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = category.name,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = catIcon,
+                                            contentDescription = null,
+                                            tint = catColor,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    },
+                                    onClick = {
+                                        isCategoryDropdownExpanded = false
+                                        onCategorySelect(category.id)
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // شارة توضيحية لتاريخ اليوم المحدد أو الفترة المخصصة مع زر التعديل والإلغاء
+                // بطاقة توضيحية للفترة المخصصة أو اليوم المحدد فقط عند تفعيلهما مع إمكانية التعديل السريع والإلغاء
                 if (uiState.selectedDatePeriod == DateRangeFilter.SPECIFIC_DAY) {
                     Surface(
                         shape = RoundedCornerShape(10.dp),
@@ -366,86 +574,6 @@ fun TransactionsHistoryContent(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                 }
-            }
-
-            // شريط تصفية التصنيفات الأفقي (يعتمد categoryId وليس الاسم)
-            item {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // خيار "جميع التصنيفات"
-                    item {
-                        val isAllSelected = uiState.selectedCategoryId == null
-                        Surface(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { onCategorySelect(null) }
-                                .then(
-                                    if (isAllSelected) {
-                                        Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
-                                    } else {
-                                        Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                    }
-                                ),
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isAllSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
-                        ) {
-                            Text(
-                                text = "جميع التصنيفات",
-                                style = MaterialTheme.typography.bodySmall,
-                                fontWeight = if (isAllSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isAllSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
-                            )
-                        }
-                    }
-
-                    // عناصر التصنيفات المتاحة
-                    items(
-                        items = uiState.availableFilterCategories,
-                        key = { it.id },
-                        contentType = { "category_chip" }
-                    ) { category ->
-                        val isSelected = uiState.selectedCategoryId == category.id
-                        Surface(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { onCategorySelect(category.id) }
-                                .then(
-                                    if (isSelected) {
-                                        Modifier.border(1.5.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
-                                    } else {
-                                        Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                                    }
-                                ),
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                val catIcon = CategoryIconHelper.getIcon(category.iconKey)
-                                val catColor = CategoryIconHelper.getColor(category.iconKey)
-                                Icon(
-                                    imageVector = catIcon,
-                                    contentDescription = null,
-                                    tint = if (isSelected) MaterialTheme.colorScheme.primary else catColor,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = category.name,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(16.dp))
             }
 
             // شريط عدد النتائج، زر طي/توسيع الكل، وزر إعادة التعيين

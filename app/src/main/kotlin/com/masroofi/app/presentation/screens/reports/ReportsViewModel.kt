@@ -243,6 +243,8 @@ class ReportsViewModel(
         _selectedYearMonth.value = yearMonth
     }
 
+    private var isExportingPdf = false
+
     /**
      * تصدير تقرير PDF مالي مخصص من شاشة التقارير
      */
@@ -254,8 +256,11 @@ class ReportsViewModel(
         customEndDate: LocalDate?,
         typeFilter: TransactionTypeFilter,
         currencySymbol: String,
+        ownerName: String = "",
         onSuccess: (File) -> Unit
     ) {
+        if (isExportingPdf) return
+        isExportingPdf = true
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val allTransactions = transactionRepository.getAllTransactions().first()
@@ -306,7 +311,8 @@ class ReportsViewModel(
                     transactions = finalTransactions,
                     periodTitle = periodLabel,
                     currencySymbol = currencySymbol,
-                    reportTitle = "تقرير العمليات المالية ($periodLabel)"
+                    reportTitle = "تقرير العمليات المالية ($periodLabel)",
+                    userName = ownerName
                 )
 
                 try {
@@ -316,7 +322,10 @@ class ReportsViewModel(
                 withContext(Dispatchers.Main) {
                     onSuccess(pdfFile)
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            } finally {
+                isExportingPdf = false
+            }
         }
     }
 }

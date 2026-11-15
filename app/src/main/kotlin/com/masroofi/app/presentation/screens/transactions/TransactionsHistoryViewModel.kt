@@ -25,7 +25,7 @@ import java.time.YearMonth
  * الفترات الزمنية لتصفية سجل العمليات
  */
 enum class DateRangeFilter(val title: String) {
-    ALL("الكل"),
+    ALL("كل الأوقات"),
     TODAY("اليوم"),
     SPECIFIC_DAY("تحديد يوم معين"),
     THIS_WEEK("هذا الأسبوع"),
@@ -104,11 +104,12 @@ class TransactionsHistoryViewModel(
             ) { allTx: List<TransactionItem>, allCats: List<Category>, filters: FilterCriteria, dialogInfo: Triple<Boolean, Boolean, String?> ->
                 val (datePickerOpen, rangePickerOpen, msg) = dialogInfo
                 val sortedCats = CategoryRepositoryImpl.sortCategoriesLogically(allCats)
+                val activeCats = sortedCats.filter { it.isActive }
 
                 val availableCats = when (filters.filterIndex) {
-                    1 -> sortedCats.filter { it.type == TransactionType.EXPENSE }
-                    2 -> sortedCats.filter { it.type == TransactionType.INCOME }
-                    else -> sortedCats
+                    1 -> activeCats.filter { it.type == TransactionType.EXPENSE }
+                    2 -> activeCats.filter { it.type == TransactionType.INCOME }
+                    else -> activeCats
                 }
 
                 val now = LocalDate.now()

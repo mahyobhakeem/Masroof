@@ -12,6 +12,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -55,15 +56,18 @@ enum class TransactionTypeFilter(val title: String) {
  */
 @Composable
 fun PdfExportDialog(
+    initialOwnerName: String = "",
     onDismiss: () -> Unit,
     onConfirmExport: (
         periodMode: PdfPeriodMode,
         specificDate: LocalDate?,
         customStartDate: LocalDate?,
         customEndDate: LocalDate?,
-        typeFilter: TransactionTypeFilter
+        typeFilter: TransactionTypeFilter,
+        ownerName: String
     ) -> Unit
 ) {
+    var ownerName by remember { mutableStateOf(initialOwnerName) }
     var selectedPeriodMode by remember { mutableStateOf(PdfPeriodMode.THIS_MONTH) }
     var specificDate by remember { mutableStateOf(LocalDate.now()) }
     var customStartDate by remember { mutableStateOf(LocalDate.now().minusDays(30)) }
@@ -75,13 +79,14 @@ fun PdfExportDialog(
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.92f)
                 .wrapContentHeight()
-                .padding(vertical = 16.dp),
+                .padding(vertical = 16.dp)
+                .imePadding(),
             shape = RoundedCornerShape(24.dp),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp,
@@ -133,6 +138,27 @@ fun PdfExportDialog(
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))
+
+                // حقل اسم صاحب التقرير (يظهر في ملف PDF)
+                OutlinedTextField(
+                    value = ownerName,
+                    onValueChange = { ownerName = it },
+                    label = { Text("اسم صاحب التقرير (يظهر في ملف PDF)") },
+                    placeholder = { Text("مثال: عبد الرحمن السعيد") },
+                    leadingIcon = {
+                        Icon(imageVector = Icons.Default.Person, contentDescription = null, tint = PrimaryGreen)
+                    },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryGreen,
+                        focusedLabelColor = PrimaryGreen,
+                        cursorColor = PrimaryGreen
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // 1. قسم اختيار الفترة الزمنية
                 Text(
@@ -333,7 +359,8 @@ fun PdfExportDialog(
                                 if (selectedPeriodMode == PdfPeriodMode.SPECIFIC_DAY) specificDate else null,
                                 if (selectedPeriodMode == PdfPeriodMode.CUSTOM_RANGE) customStartDate else null,
                                 if (selectedPeriodMode == PdfPeriodMode.CUSTOM_RANGE) customEndDate else null,
-                                selectedTypeFilter
+                                selectedTypeFilter,
+                                ownerName.trim()
                             )
                         },
                         modifier = Modifier.weight(1f),

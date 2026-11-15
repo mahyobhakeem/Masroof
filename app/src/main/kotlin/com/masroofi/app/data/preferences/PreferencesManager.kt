@@ -33,11 +33,13 @@ interface UserPreferences {
     val isDarkMode: Flow<Boolean>
     val selectedCurrencyCode: Flow<String>
     val hasSelectedCurrency: Flow<Boolean>
+    val pdfOwnerName: Flow<String>
     suspend fun setThemeMode(mode: ThemeMode)
     suspend fun setDarkMode(isDark: Boolean)
     suspend fun setSelectedCurrencyCode(code: String)
     suspend fun setHasSelectedCurrency(hasSelected: Boolean)
     suspend fun setCloudCredentials(apiKey: String, projectId: String)
+    suspend fun setPdfOwnerName(name: String)
 }
 
 /**
@@ -53,6 +55,7 @@ open class PreferencesManager(private val context: Context) : UserPreferences {
         val HAS_SELECTED_CURRENCY = booleanPreferencesKey("has_selected_currency")
         val CLOUD_API_KEY = stringPreferencesKey("cloud_api_key")
         val CLOUD_PROJECT_ID = stringPreferencesKey("cloud_project_id")
+        val PDF_OWNER_NAME = stringPreferencesKey("pdf_owner_name")
     }
 
     /**
@@ -175,5 +178,29 @@ open class PreferencesManager(private val context: Context) : UserPreferences {
      */
     override suspend fun setDarkMode(isDark: Boolean) {
         setThemeMode(if (isDark) ThemeMode.DARK else ThemeMode.LIGHT)
+    }
+
+    /**
+     * تدفق اسم صاحب التقرير المالي المفضل في ملفات PDF
+     */
+    override val pdfOwnerName: Flow<String> = context.dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[PreferencesKeys.PDF_OWNER_NAME] ?: ""
+        }
+
+    /**
+     * حفظ اسم صاحب التقرير المالي المفضل محلياً
+     */
+    override suspend fun setPdfOwnerName(name: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.PDF_OWNER_NAME] = name.trim()
+        }
     }
 }

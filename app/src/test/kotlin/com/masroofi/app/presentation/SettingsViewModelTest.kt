@@ -444,11 +444,13 @@ class FakePreferencesManager : UserPreferences {
     private val _themeModeFlow = MutableStateFlow(ThemeMode.SYSTEM)
     private val _currencyFlow = MutableStateFlow("YER")
     private val _hasSelectedCurrencyFlow = MutableStateFlow(false)
+    private val _pdfOwnerNameFlow = MutableStateFlow("")
 
     override val themeMode: Flow<ThemeMode> = _themeModeFlow
     override val isDarkMode: Flow<Boolean> = _themeModeFlow.map { it == ThemeMode.DARK }
     override val selectedCurrencyCode: Flow<String> = _currencyFlow
     override val hasSelectedCurrency: Flow<Boolean> = _hasSelectedCurrencyFlow
+    override val pdfOwnerName: Flow<String> = _pdfOwnerNameFlow
 
     override suspend fun setThemeMode(mode: ThemeMode) {
         _themeModeFlow.value = mode
@@ -468,6 +470,10 @@ class FakePreferencesManager : UserPreferences {
 
     override suspend fun setCloudCredentials(apiKey: String, projectId: String) {
         // لا حاجة لعمليات إضافية في بيئة الاختبار
+    }
+
+    override suspend fun setPdfOwnerName(name: String) {
+        _pdfOwnerNameFlow.value = name
     }
 }
 

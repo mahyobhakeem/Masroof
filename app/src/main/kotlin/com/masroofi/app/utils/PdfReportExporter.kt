@@ -44,6 +44,7 @@ object PdfReportExporter {
         periodTitle: String,
         currencySymbol: String,
         reportTitle: String = "تقرير العمليات المالية المفصل",
+        userName: String? = null,
         customOutputFile: File? = null
     ): File {
         val pdfDocument = PdfDocument()
@@ -137,28 +138,20 @@ object PdfReportExporter {
         var page = pdfDocument.startPage(pageInfo)
         var canvas = page.canvas
 
-        // 1. رسم الترويسة الرئيسية للصفحة الأولى
-        drawHeader(canvas, paintEmerald, paintTextWhite, paintSubWhite, paintDateLeft, reportTitle, periodTitle, currencySymbol)
+        // 1. رسم الترويسة الرئيسية للصفحة الأولى مع الشعار واسم المستخدم
+        drawHeader(context, canvas, paintEmerald, paintTextWhite, paintSubWhite, paintDateLeft, reportTitle, periodTitle, currencySymbol, userName)
 
         // 2. رسم بطاقات الملخص المالي
-        var currentY = 158f
+        var currentY = 160f
         drawSummaryCards(canvas, tajawalBold, tajawalRegular, totalExpenses, totalIncome, netBalance, currencySymbol)
 
         // 3. جدول العمليات
-        currentY = 172f
+        currentY = 174f
         drawTableHeader(canvas, currentY, paintEmerald, paintTableHeader, paintBorder)
         currentY += 24f
 
         val rowHeight = 22f
         val maxY = 790f
-
-        // تقسيم الأعمدة (من اليمين إلى اليسار RTL):
-        // م: 565 -> 535 (30)
-        // التاريخ واليوم: 535 -> 440 (95)
-        // النوع: 440 -> 390 (50)
-        // التصنيف: 390 -> 310 (80)
-        // المبلغ: 310 -> 220 (90)
-        // الملاحظات: 220 -> 30 (190)
 
         for (i in transactions.indices) {
             val tx = transactions[i]
@@ -174,7 +167,7 @@ object PdfReportExporter {
                 canvas = page.canvas
 
                 // ترويسة مختصرة للصفحات المتتالية
-                drawContinuationHeader(canvas, paintEmerald, paintTextWhite, paintSubWhite, reportTitle, periodTitle)
+                drawContinuationHeader(canvas, paintEmerald, paintTextWhite, paintSubWhite, periodTitle, userName)
                 currentY = 60f
                 drawTableHeader(canvas, currentY, paintEmerald, paintTableHeader, paintBorder)
                 currentY += 24f
@@ -242,14 +235,24 @@ object PdfReportExporter {
         drawFooter(canvas, pageNumber, tajawalRegular)
         pdfDocument.finishPage(page)
 
-        // حفظ الملف
-        val timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm"))
+        // حفظ ملف PDF واحد فقط لا غير في مجلد التنزيلات العام Downloads/Masroof
+        val timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
         val fileName = "Masroof_Report_$timeStamp.pdf"
 
         val targetFile = customOutputFile ?: run {
-            val localDir = File(context.getExternalFilesDir(null), "reports")
-            if (!localDir.exists()) localDir.mkdirs()
-            File(localDir, fileName)
+            val pubDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val masroofDir = File(pubDownloads, "Masroof")
+            if (!masroofDir.exists()) {
+                masroofDir.mkdirs()
+            }
+            if (masroofDir.exists() && (masroofDir.canWrite() || Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)) {
+                File(masroofDir, fileName)
+            } else {
+                val fallbackDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir, "Masroof").apply {
+                    if (!exists()) mkdirs()
+                }
+                File(fallbackDir, fileName)
+            }
         }
 
         FileOutputStream(targetFile).use { out ->
@@ -257,13 +260,12 @@ object PdfReportExporter {
         }
         pdfDocument.close()
 
-        // حفظ نسخة إضافية تلقائياً في مجلد التنزيلات العام Downloads/Masroof
-        savePdfToPublicDownloads(context, targetFile, fileName)
-
+        // يتم إرجاع نفس الملف دون حفظ نسخ ثانية أو ثالثة
         return targetFile
     }
 
     private fun drawHeader(
+        context: Context,
         canvas: Canvas,
         paintBg: Paint,
         paintTitle: Paint,
@@ -271,20 +273,85 @@ object PdfReportExporter {
         paintDate: Paint,
         reportTitle: String,
         periodTitle: String,
-        currencySymbol: String
+        currencySymbol: String,
+        userName: String?
     ) {
-        // شريط الترويسة الزمردي
-        canvas.drawRect(0f, 0f, PAGE_WIDTH.toFloat(), 82f, paintBg)
+        // شريط الترويسة الزمردي الملكي
+        canvas.drawRect(0f, 0f, PAGE_WIDTH.toFloat(), 88f, paintBg)
 
-        // اسم التطبيق والعنوان
-        canvas.drawText("تطبيق مصروف | Masroof", MARGIN_RIGHT, 32f, paintTitle)
-        canvas.drawText(reportTitle, MARGIN_RIGHT, 48f, paintSub)
-        canvas.drawText("الفترة: $periodTitle • العملة المعتمدة: $currencySymbol", MARGIN_RIGHT, 65f, paintSub)
+        // 1. رسم الشعار الرسمي لتطبيق مصروف
+        val logoSize = 48
+        val logoX = MARGIN_RIGHT - logoSize
+        val logoY = 18f
 
-        // تاريخ وتوقيت التصدير باليسار
-        val nowStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
-        canvas.drawText("تاريخ التصدير:", MARGIN_LEFT, 45f, paintDate)
-        canvas.drawText(nowStr, MARGIN_LEFT, 60f, paintDate)
+        try {
+            val drawable = try {
+                ResourcesCompat.getDrawable(context.resources, R.mipmap.ic_launcher, context.theme)
+            } catch (_: Exception) {
+                null
+            } ?: context.packageManager.getApplicationIcon(context.packageName)
+
+            val rawLogo: Bitmap? = if (drawable is android.graphics.drawable.BitmapDrawable) {
+                drawable.bitmap
+            } else if (drawable != null) {
+                val b = Bitmap.createBitmap(logoSize, logoSize, Bitmap.Config.ARGB_8888)
+                val c = Canvas(b)
+                drawable.setBounds(0, 0, logoSize, logoSize)
+                drawable.draw(c)
+                b
+            } else {
+                null
+            }
+
+            if (rawLogo != null) {
+                val scaledLogo = if (rawLogo.width == logoSize && rawLogo.height == logoSize) rawLogo else Bitmap.createScaledBitmap(rawLogo, logoSize, logoSize, true)
+                val logoRect = RectF(logoX - 2f, logoY - 2f, logoX + logoSize + 2f, logoY + logoSize + 2f)
+                val logoBgPaint = Paint().apply {
+                    color = Color.WHITE
+                    style = Paint.Style.FILL
+                    isAntiAlias = true
+                }
+                val logoStrokePaint = Paint().apply {
+                    color = Color.rgb(52, 211, 153)
+                    style = Paint.Style.STROKE
+                    strokeWidth = 1.2f
+                    isAntiAlias = true
+                }
+                canvas.drawRoundRect(logoRect, 12f, 12f, logoBgPaint)
+                canvas.drawRoundRect(logoRect, 12f, 12f, logoStrokePaint)
+
+                val clipPath = Path().apply {
+                    addRoundRect(RectF(logoX.toFloat(), logoY, (logoX + logoSize).toFloat(), logoY + logoSize), 10f, 10f, Path.Direction.CW)
+                }
+                canvas.save()
+                canvas.clipPath(clipPath)
+                canvas.drawBitmap(scaledLogo, logoX.toFloat(), logoY, null)
+                canvas.restore()
+            }
+        } catch (_: Exception) {}
+
+        // 2. نصوص الترويسة بجانب الشعار (على اليمين RTL)
+        val textRightX = logoX - 12f
+        val titlePaint = Paint(paintTitle).apply { textSize = 14f }
+        canvas.drawText("تطبيق مصروف — كشف حساب مالي", textRightX, 33f, titlePaint)
+
+        val clientName = userName?.trim()?.ifBlank { null } ?: "مستخدم مصروف"
+        val userPaint = Paint(paintSub).apply {
+            textSize = 9.5f
+            color = Color.rgb(255, 255, 255)
+        }
+        canvas.drawText("صاحب الحساب: $clientName", textRightX, 49f, userPaint)
+
+        canvas.drawText("الفترة: $periodTitle • العملة المعتمدة: $currencySymbol", textRightX, 65f, paintSub)
+
+        // 3. تاريخ وتوقيت التصدير باليسار
+        val nowStr = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd  HH:mm"))
+        canvas.drawText("تاريخ الإصدار:", MARGIN_LEFT, 43f, paintDate)
+        val dateValPaint = Paint(paintDate).apply {
+            textSize = 9f
+            color = Color.WHITE
+        }
+        canvas.drawText(nowStr, MARGIN_LEFT, 59f, dateValPaint)
     }
 
     private fun drawContinuationHeader(
@@ -292,12 +359,14 @@ object PdfReportExporter {
         paintBg: Paint,
         paintTitle: Paint,
         paintSub: Paint,
-        reportTitle: String,
-        periodTitle: String
+        periodTitle: String,
+        userName: String?
     ) {
         canvas.drawRect(0f, 0f, PAGE_WIDTH.toFloat(), 42f, paintBg)
+        val clientName = userName?.trim()?.ifBlank { null } ?: "مستخدم مصروف"
         val continuationPaint = Paint(paintTitle).apply { textSize = 11f }
-        canvas.drawText("$reportTitle (تابع) • $periodTitle", MARGIN_RIGHT, 26f, continuationPaint)
+        canvas.drawText("تطبيق مصروف — كشف حساب مالي (تابع) • $periodTitle", MARGIN_RIGHT, 26f, continuationPaint)
+        canvas.drawText("صاحب الحساب: $clientName", MARGIN_LEFT, 26f, paintSub)
     }
 
     private fun drawSummaryCards(
@@ -475,39 +544,6 @@ object PdfReportExporter {
 
         canvas.drawText("تم التصدير عبر تطبيق مصروف (Masroof) • الحل المالي الذكي لإدارة المصروفات", MARGIN_RIGHT, y + 14f, paintTextRight)
         canvas.drawText("صفحة $pageNumber", MARGIN_LEFT, y + 14f, paintTextLeft)
-    }
-
-    /**
-     * حفظ نسخة من ملف PDF في مجلد التنزيلات العام Downloads/Masroof
-     */
-    private fun savePdfToPublicDownloads(context: Context, sourceFile: File, fileName: String): String {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                    put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Masroof")
-                }
-                val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                if (uri != null) {
-                    context.contentResolver.openOutputStream(uri)?.use { out ->
-                        sourceFile.inputStream().use { input -> input.copyTo(out) }
-                    }
-                    return "Downloads/Masroof/$fileName"
-                }
-            }
-        } catch (_: Exception) {}
-
-        return try {
-            val pubDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val masroofDir = File(pubDownloads, "Masroof")
-            if (!masroofDir.exists()) masroofDir.mkdirs()
-            val target = File(masroofDir, fileName)
-            sourceFile.copyTo(target, overwrite = true)
-            target.absolutePath
-        } catch (_: Exception) {
-            sourceFile.absolutePath
-        }
     }
 
     /**

@@ -39,7 +39,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.masroofi.app.data.preferences.PreferencesManager
 import com.masroofi.app.domain.calculations.CategoryExpenseSummary
+import kotlinx.coroutines.launch
 import com.masroofi.app.domain.calculations.MonthlyComparisonItem
 import com.masroofi.app.domain.calculations.MonthlyReportData
 import com.masroofi.app.domain.calculations.WeeklySpendingItem
@@ -71,6 +73,9 @@ fun ReportsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activeCurrency = LocalAppCurrency.current
+    val preferencesManager = remember { PreferencesManager(context) }
+    val pdfOwnerName by preferencesManager.pdfOwnerName.collectAsState(initial = "")
+    val coroutineScope = rememberCoroutineScope()
     var isPdfDialogOpen by remember { mutableStateOf(false) }
     var generatedPdf by remember { mutableStateOf<File?>(null) }
 
@@ -92,9 +97,15 @@ fun ReportsScreen(
 
     if (isPdfDialogOpen) {
         PdfExportDialog(
+            initialOwnerName = pdfOwnerName,
             onDismiss = { isPdfDialogOpen = false },
-            onConfirmExport = { periodMode, specificDate, customStart, customEnd, typeFilter ->
+            onConfirmExport = { periodMode, specificDate, customStart, customEnd, typeFilter, ownerName ->
                 isPdfDialogOpen = false
+                if (ownerName.isNotBlank()) {
+                    coroutineScope.launch {
+                        preferencesManager.setPdfOwnerName(ownerName)
+                    }
+                }
                 viewModel.exportPdfReport(
                     context = context,
                     periodMode = periodMode,
@@ -103,6 +114,7 @@ fun ReportsScreen(
                     customEndDate = customEnd,
                     typeFilter = typeFilter,
                     currencySymbol = activeCurrency.symbolArabic,
+                    ownerName = ownerName,
                     onSuccess = { file -> generatedPdf = file }
                 )
             }

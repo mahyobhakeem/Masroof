@@ -83,6 +83,7 @@ data class SettingsUiState(
     val isPdfExportDialogOpen: Boolean = false,
     val generatedPdfFile: File? = null,
     val isGeneratingPdf: Boolean = false,
+    val pdfOwnerName: String = "",
     val errorMessage: String? = null,
     val successMessage: String? = null
 ) {
@@ -189,6 +190,13 @@ class SettingsViewModel(
         viewModelScope.launch {
             transactionRepository.getAllTransactions().distinctUntilChanged().collect { txs ->
                 _uiState.update { it.copy(hasExistingTransactions = txs.isNotEmpty()) }
+            }
+        }
+
+        // مراقبة اسم صاحب التقرير المالي المفضل
+        viewModelScope.launch {
+            preferencesManager.pdfOwnerName.distinctUntilChanged().collect { name ->
+                _uiState.update { it.copy(pdfOwnerName = name) }
             }
         }
     }
@@ -669,11 +677,18 @@ class SettingsViewModel(
         customStartDate: LocalDate?,
         customEndDate: LocalDate?,
         typeFilter: TransactionTypeFilter,
-        currencySymbol: String
+        currencySymbol: String,
+        ownerName: String = ""
     ) {
+        if (_uiState.value.isGeneratingPdf) return
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isGeneratingPdf = true, isPdfExportDialogOpen = false) }
             try {
+                if (ownerName.isNotBlank()) {
+                    preferencesManager.setPdfOwnerName(ownerName)
+                    _uiState.update { it.copy(pdfOwnerName = ownerName) }
+                }
+
                 val allTransactions = transactionRepository.getAllTransactions().first()
 
                 val (filteredByDate, periodLabel) = when (periodMode) {
@@ -717,12 +732,19 @@ class SettingsViewModel(
                     TransactionTypeFilter.INCOME_ONLY -> filteredByDate.filter { it.type == TransactionType.INCOME }
                 }.sortedByDescending { it.transactionDate }
 
+                val resolvedOwnerName = ownerName.ifBlank {
+                    _uiState.value.pdfOwnerName.ifBlank {
+                        _uiState.value.currentUser?.displayName ?: ""
+                    }
+                }
+
                 val pdfFile = PdfReportExporter.generatePdfReport(
                     context = context,
                     transactions = finalTransactions,
                     periodTitle = periodLabel,
                     currencySymbol = currencySymbol,
-                    reportTitle = "تقرير العمليات المالية ($periodLabel)"
+                    reportTitle = "تقرير العمليات المالية ($periodLabel)",
+                    userName = resolvedOwnerName
                 )
 
                 // فتح الملف مباشرة عبر عارض PDF
@@ -744,6 +766,8 @@ class SettingsViewModel(
                         errorMessage = "فشل تصدير تقرير PDF: ${e.localizedMessage ?: e.message}"
                     )
                 }
+            } finally {
+                _uiState.update { it.copy(isGeneratingPdf = false) }
             }
         }
     }
