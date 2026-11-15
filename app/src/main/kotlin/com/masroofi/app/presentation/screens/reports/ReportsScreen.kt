@@ -73,33 +73,43 @@ fun ReportsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val activeCurrency = LocalAppCurrency.current
-    val preferencesManager = remember { PreferencesManager(context) }
-    val pdfOwnerName by preferencesManager.pdfOwnerName.collectAsState(initial = "")
     val coroutineScope = rememberCoroutineScope()
-    var isPdfDialogOpen by remember { mutableStateOf(false) }
-    var generatedPdf by remember { mutableStateOf<File?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // إدارة زر الرجوع خطوة بخطوة: إلغاء تحديد الشريحة أولاً قبل العودة للرئيسية
     BackHandler(enabled = uiState.selectedCategoryForDetails != null) {
         viewModel.selectCategory(null)
     }
 
-    ReportsContent(
-        uiState = uiState,
-        onModeSelect = { viewModel.setPeriodMode(it) },
-        onPrevious = { viewModel.selectPrevious() },
-        onNext = { viewModel.selectNext() },
-        onDateClick = { viewModel.onDateLabelClick() },
-        onCategorySelect = { viewModel.selectCategory(it) },
-        onExportPdfClick = { isPdfDialogOpen = true },
-        modifier = modifier
-    )
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let { msg ->
+            snackbarHostState.showSnackbar(msg)
+            viewModel.clearMessages()
+        }
+    }
 
-    if (isPdfDialogOpen) {
+    Box(modifier = modifier.fillMaxSize()) {
+        ReportsContent(
+            uiState = uiState,
+            onModeSelect = { viewModel.setPeriodMode(it) },
+            onPrevious = { viewModel.selectPrevious() },
+            onNext = { viewModel.selectNext() },
+            onDateClick = { viewModel.onDateLabelClick() },
+            onCategorySelect = { viewModel.selectCategory(it) },
+            onExportPdfClick = { viewModel.openPdfExportDialog() },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+
+    if (uiState.isPdfExportDialogOpen) {
         PdfExportDialog(
-            onDismiss = { isPdfDialogOpen = false },
+            onDismiss = { viewModel.closePdfExportDialog() },
             onConfirmExport = { periodMode, specificDate, customStart, customEnd, typeFilter ->
-                isPdfDialogOpen = false
                 viewModel.exportPdfReport(
                     context = context,
                     periodMode = periodMode,
@@ -107,17 +117,16 @@ fun ReportsScreen(
                     customStartDate = customStart,
                     customEndDate = customEnd,
                     typeFilter = typeFilter,
-                    currencySymbol = activeCurrency.symbolArabic,
-                    onSuccess = { file -> generatedPdf = file }
+                    currencySymbol = activeCurrency.symbolArabic
                 )
             }
         )
     }
 
-    generatedPdf?.let { pdfFile ->
+    uiState.generatedPdfFile?.let { pdfFile ->
         PdfGeneratedSuccessDialog(
             pdfFile = pdfFile,
-            onDismiss = { generatedPdf = null },
+            onDismiss = { viewModel.dismissGeneratedPdfDialog() },
             onOpen = {
                 try {
                     PdfReportExporter.openPdf(context, pdfFile)

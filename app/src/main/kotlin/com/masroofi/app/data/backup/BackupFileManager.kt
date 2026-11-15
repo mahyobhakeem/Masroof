@@ -6,22 +6,22 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
-import java.io.OutputStream
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 /**
  * مدير تخزين وإدارة ملفات النسخ الاحتياطي وتصدير البيانات محلياً
+ * متوافق 100% مع نظام Scoped Storage وأندرويد 10 إلى 15
  */
 object BackupFileManager {
 
     /**
-     * الحصول على مجلد النسخ الاحتياطية المحلي وإنشاؤه إن لم يكن موجوداً
+     * الحصول على مجلد النسخ الاحتياطية المحلي المضمون وإنشاؤه إن لم يكن موجوداً
      * مساره: /sdcard/Android/data/com.masroofi.app/files/backups
      */
     fun getBackupsDirectory(context: Context): File {
-        val dir = File(context.getExternalFilesDir(null), "backups")
+        val baseDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val dir = File(baseDir, "backups")
         if (!dir.exists()) {
             dir.mkdirs()
         }
@@ -29,11 +29,12 @@ object BackupFileManager {
     }
 
     /**
-     * الحصول على مجلد تصدير الجداول CSV
+     * الحصول على مجلد تصدير الجداول والملفات المحلي المضمون
      * مساره: /sdcard/Android/data/com.masroofi.app/files/exports
      */
     fun getExportsDirectory(context: Context): File {
-        val dir = File(context.getExternalFilesDir(null), "exports")
+        val baseDir = context.getExternalFilesDir(null) ?: context.filesDir
+        val dir = File(baseDir, "exports")
         if (!dir.exists()) {
             dir.mkdirs()
         }
@@ -51,7 +52,7 @@ object BackupFileManager {
     }
 
     /**
-     * حفظ نص النسخة الاحتياطية مباشرة في مجلد النسخ الاحتياطية المحلي
+     * حفظ نص النسخة الاحتياطية مباشرة في مجلد النسخ الاحتياطية المحلي المضمون
      */
     fun saveBackupDirectly(context: Context, jsonContent: String, customFileName: String? = null): File {
         val dir = getBackupsDirectory(context)
@@ -66,7 +67,8 @@ object BackupFileManager {
     }
 
     /**
-     * حفظ نص جدول العمليات CSV مباشرة في مجلد التصدير المحلي
+     * حفظ نص جدول العمليات CSV مباشرة في مجلد التصدير المحلي المضمون
+     * مع نسخ نسخة إضافية آمنة إلى مجلد Downloads/Masroof العام دون أي استثناءات
      */
     fun saveCsvDirectly(context: Context, csvContent: String, customFileName: String? = null): File {
         val dir = getExportsDirectory(context)
@@ -77,6 +79,32 @@ object BackupFileManager {
         targetFile.bufferedWriter(Charsets.UTF_8).use { writer ->
             writer.write(csvContent)
         }
+
+        // نسخ نسخة إلى مجلد Downloads/Masroof العام بأمان تام
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "text/csv")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Masroof")
+                }
+                val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                if (uri != null) {
+                    context.contentResolver.openOutputStream(uri)?.use { stream ->
+                        stream.bufferedWriter(Charsets.UTF_8).use { it.write(csvContent) }
+                    }
+                }
+            } else {
+                val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val masroofDir = File(downloadsDir, "Masroof")
+                if (!masroofDir.exists()) {
+                    masroofDir.mkdirs()
+                }
+                val pubFile = File(masroofDir, fileName)
+                pubFile.bufferedWriter(Charsets.UTF_8).use { it.write(csvContent) }
+            }
+        }
+
         return targetFile
     }
 
@@ -88,7 +116,7 @@ object BackupFileManager {
         val timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
         val fileName = customFileName ?: "masroof_backup_$timeStamp.json"
 
-        try {
+        runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val contentValues = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
@@ -103,11 +131,9 @@ object BackupFileManager {
                     return "Downloads/Masroof/$fileName"
                 }
             }
-        } catch (_: Exception) {
-            // تجاهل والانتقال للمسار المباشر إن تعذر
         }
 
-        return try {
+        return runCatching {
             val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             val masroofDir = File(downloadsDir, "Masroof")
             if (!masroofDir.exists()) {
@@ -116,8 +142,6 @@ object BackupFileManager {
             val targetFile = File(masroofDir, fileName)
             targetFile.bufferedWriter(Charsets.UTF_8).use { it.write(jsonContent) }
             targetFile.absolutePath
-        } catch (_: Exception) {
-            "Downloads/Masroof/$fileName"
-        }
+        }.getOrDefault("Downloads/Masroof/$fileName")
     }
 }

@@ -82,6 +82,7 @@ data class SettingsUiState(
     val isDeleteAccountDialogOpen: Boolean = false,
     val isPdfExportDialogOpen: Boolean = false,
     val generatedPdfFile: File? = null,
+    val generatedCsvFile: File? = null,
     val isGeneratingPdf: Boolean = false,
     val pdfOwnerName: String = "",
     val errorMessage: String? = null,
@@ -645,7 +646,10 @@ class SettingsViewModel(
                 }
 
                 _uiState.update {
-                    it.copy(successMessage = "تم تصدير ${transactions.size} عملية إلى ملف CSV بنجاح:\n${savedFile.name}")
+                    it.copy(
+                        generatedCsvFile = savedFile,
+                        successMessage = "تم تصدير ${transactions.size} عملية إلى ملف CSV بنجاح:\n${savedFile.name}"
+                    )
                 }
             } catch (e: Exception) {
                 _uiState.update {
@@ -665,6 +669,10 @@ class SettingsViewModel(
 
     fun dismissGeneratedPdfDialog() {
         _uiState.update { it.copy(generatedPdfFile = null) }
+    }
+
+    fun dismissGeneratedCsvDialog() {
+        _uiState.update { it.copy(generatedCsvFile = null) }
     }
 
     /**

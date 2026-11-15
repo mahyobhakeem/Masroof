@@ -27,6 +27,8 @@ import com.masroofi.app.data.preferences.ThemeMode
 import com.masroofi.app.domain.model.Category
 import com.masroofi.app.domain.model.CurrencyCatalog
 import com.masroofi.app.domain.model.TransactionType
+import android.content.Intent
+import androidx.core.content.FileProvider
 import com.masroofi.app.presentation.components.ChangePasswordDialog
 import com.masroofi.app.presentation.components.CloudAccountAuthSheet
 import com.masroofi.app.presentation.components.CloudBackupCard
@@ -34,6 +36,7 @@ import com.masroofi.app.presentation.components.CloudBackupFoundAutoPromptDialog
 import com.masroofi.app.presentation.components.CloudRestoreConfirmationDialog
 import com.masroofi.app.presentation.components.CurrencyChangeConfirmationDialog
 import com.masroofi.app.presentation.components.CurrencySelectionSheet
+import com.masroofi.app.presentation.components.CsvExportSuccessDialog
 import com.masroofi.app.presentation.components.DeleteAccountConfirmationDialog
 import com.masroofi.app.presentation.components.GoogleSignInDialog
 import com.masroofi.app.presentation.components.PrivacyPolicyDialog
@@ -174,6 +177,34 @@ fun SettingsScreen(
                 try {
                     PdfReportExporter.sharePdf(context, pdfFile)
                 } catch (_: Exception) {}
+            }
+        )
+    }
+
+    uiState.generatedCsvFile?.let { csvFile ->
+        CsvExportSuccessDialog(
+            csvFile = csvFile,
+            onDismiss = { viewModel.dismissGeneratedCsvDialog() },
+            onShare = {
+                try {
+                    val uri = FileProvider.getUriForFile(context, "com.masroofi.app.fileprovider", csvFile)
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/csv"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        putExtra(Intent.EXTRA_SUBJECT, "تصدير العمليات المالية (CSV)")
+                        putExtra(Intent.EXTRA_TEXT, "مرفق جدول العمليات المالية الصادر من تطبيق مصروف.")
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    val chooser = Intent.createChooser(shareIntent, "مشاركة ملف CSV عبر").apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(chooser)
+                } catch (_: Exception) {}
+            },
+            onSaveToCustomFolder = {
+                viewModel.dismissGeneratedCsvDialog()
+                csvLauncher.launch(csvFile.name)
             }
         )
     }

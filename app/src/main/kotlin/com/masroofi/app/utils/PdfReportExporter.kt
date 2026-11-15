@@ -1,5 +1,6 @@
 package com.masroofi.app.utils
 
+import android.content.ActivityNotFoundException
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -236,33 +237,48 @@ object PdfReportExporter {
         drawFooter(canvas, pageNumber, tajawalRegular)
         pdfDocument.finishPage(page)
 
-        // حفظ ملف PDF واحد فقط لا غير في مجلد التنزيلات العام Downloads/Masroof
+        // 1. كتابة ملف PDF أولاً دائماً داخل مجلد التطبيق المضمون 100%
         val timeStamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
         val fileName = "Masroof_Report_$timeStamp.pdf"
 
-        val targetFile = customOutputFile ?: run {
-            val pubDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val masroofDir = File(pubDownloads, "Masroof")
-            if (!masroofDir.exists()) {
-                masroofDir.mkdirs()
-            }
-            if (masroofDir.exists() && (masroofDir.canWrite() || Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)) {
-                File(masroofDir, fileName)
-            } else {
-                val fallbackDir = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.filesDir, "Masroof").apply {
-                    if (!exists()) mkdirs()
-                }
-                File(fallbackDir, fileName)
-            }
+        val exportDir = File(context.getExternalFilesDir(null) ?: context.filesDir, "exports").apply {
+            if (!exists()) mkdirs()
         }
+        val safeFile = customOutputFile ?: File(exportDir, fileName)
 
-        FileOutputStream(targetFile).use { out ->
+        FileOutputStream(safeFile).use { out ->
             pdfDocument.writeTo(out)
         }
         pdfDocument.close()
 
-        // يتم إرجاع نفس الملف دون حفظ نسخ ثانية أو ثالثة
-        return targetFile
+        // 2. محاولة نسخ نسخة إضافية إلى مجلد Downloads/Masroof العام بأمان تام دون إفشال عملية التصدير
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Masroof")
+                }
+                val uri = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                if (uri != null) {
+                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                        safeFile.inputStream().use { inputStream ->
+                            inputStream.copyTo(outputStream)
+                        }
+                    }
+                }
+            } else {
+                val pubDownloads = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val masroofDir = File(pubDownloads, "Masroof")
+                if (!masroofDir.exists()) {
+                    masroofDir.mkdirs()
+                }
+                val pubFile = File(masroofDir, fileName)
+                safeFile.copyTo(pubFile, overwrite = true)
+            }
+        }
+
+        return safeFile
     }
 
     private fun drawHeader(
@@ -341,7 +357,7 @@ object PdfReportExporter {
             textSize = 9.5f
             color = Color.rgb(255, 255, 255)
         }
-        canvas.drawText("صاحب الحساب: $clientName", textRightX, 49f, userPaint)
+        canvas.drawText("المستخدم : $clientName", textRightX, 49f, userPaint)
 
         canvas.drawText("الفترة: $periodTitle • العملة المعتمدة: $currencySymbol", textRightX, 65f, paintSub)
 
@@ -388,7 +404,7 @@ object PdfReportExporter {
         val clientName = resolveAccountOwnerName(context, userName)
         val continuationPaint = Paint(paintTitle).apply { textSize = 11f }
         canvas.drawText("تطبيق مصروف — كشف حساب مالي (تابع) • $periodTitle", MARGIN_RIGHT, 26f, continuationPaint)
-        canvas.drawText("صاحب الحساب: $clientName", MARGIN_LEFT, 26f, paintSub)
+        canvas.drawText("المستخدم : $clientName", MARGIN_LEFT, 26f, paintSub)
     }
 
     private fun drawSummaryCards(
@@ -570,34 +586,45 @@ object PdfReportExporter {
 
     /**
      * فتح ملف PDF مباشرة وتلقائياً عبر Intent.ACTION_VIEW
+     * مع التبديل التلقائي إلى مشاركة الملف في حال عدم توفر تطبيق قارئ PDF على الجهاز
      */
     fun openPdf(context: Context, pdfFile: File) {
-        val uri: Uri = FileProvider.getUriForFile(context, "com.masroofi.app.fileprovider", pdfFile)
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/pdf")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            val uri: Uri = FileProvider.getUriForFile(context, "com.masroofi.app.fileprovider", pdfFile)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/pdf")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            val chooser = Intent.createChooser(intent, "عرض تقرير مصروف المالي").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
+        } catch (_: ActivityNotFoundException) {
+            sharePdf(context, pdfFile)
+        } catch (_: Exception) {
+            sharePdf(context, pdfFile)
         }
-        val chooser = Intent.createChooser(intent, "عرض تقرير مصروف المالي")
-        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(chooser)
     }
 
     /**
      * مشاركة ملف PDF مباشرة عبر واتساب، تيليجرام، أو البريد الإلكتروني
      */
     fun sharePdf(context: Context, pdfFile: File) {
-        val uri: Uri = FileProvider.getUriForFile(context, "com.masroofi.app.fileprovider", pdfFile)
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/pdf"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_SUBJECT, "تقرير مصروف المالي")
-            putExtra(Intent.EXTRA_TEXT, "مرفق تقرير العمليات المالية الصادر من تطبيق مصروف.")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching {
+            val uri: Uri = FileProvider.getUriForFile(context, "com.masroofi.app.fileprovider", pdfFile)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "تقرير مصروف المالي")
+                putExtra(Intent.EXTRA_TEXT, "مرفق تقرير العمليات المالية الصادر من تطبيق مصروف.")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            val chooser = Intent.createChooser(intent, "مشاركة تقرير PDF عبر").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
         }
-        val chooser = Intent.createChooser(intent, "مشاركة تقرير PDF عبر")
-        chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        context.startActivity(chooser)
     }
 }

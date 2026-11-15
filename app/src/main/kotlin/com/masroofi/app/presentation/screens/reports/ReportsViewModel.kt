@@ -40,7 +40,12 @@ data class ReportsUiState(
     val selectedCategoryForDetails: CategoryExpenseSummary? = null,
     val isLoading: Boolean = false,
     val showDatePicker: Boolean = false,
-    val showDateRangePicker: Boolean = false
+    val showDateRangePicker: Boolean = false,
+    val isPdfExportDialogOpen: Boolean = false,
+    val isGeneratingPdf: Boolean = false,
+    val generatedPdfFile: File? = null,
+    val errorMessage: String? = null,
+    val successMessage: String? = null
 )
 
 /**
@@ -243,7 +248,21 @@ class ReportsViewModel(
         _selectedYearMonth.value = yearMonth
     }
 
-    private var isExportingPdf = false
+    fun openPdfExportDialog() {
+        _uiState.update { it.copy(isPdfExportDialogOpen = true) }
+    }
+
+    fun closePdfExportDialog() {
+        _uiState.update { it.copy(isPdfExportDialogOpen = false) }
+    }
+
+    fun dismissGeneratedPdfDialog() {
+        _uiState.update { it.copy(generatedPdfFile = null) }
+    }
+
+    fun clearMessages() {
+        _uiState.update { it.copy(errorMessage = null, successMessage = null) }
+    }
 
     /**
      * تصدير تقرير PDF مالي مخصص من شاشة التقارير
@@ -257,10 +276,10 @@ class ReportsViewModel(
         typeFilter: TransactionTypeFilter,
         currencySymbol: String,
         ownerName: String? = null,
-        onSuccess: (File) -> Unit
+        onSuccess: ((File) -> Unit)? = null
     ) {
-        if (isExportingPdf) return
-        isExportingPdf = true
+        if (_uiState.value.isGeneratingPdf) return
+        _uiState.update { it.copy(isGeneratingPdf = true, isPdfExportDialogOpen = false) }
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val allTransactions = transactionRepository.getAllTransactions().first()
@@ -320,11 +339,23 @@ class ReportsViewModel(
                 } catch (_: Exception) {}
 
                 withContext(Dispatchers.Main) {
-                    onSuccess(pdfFile)
+                    onSuccess?.invoke(pdfFile)
                 }
-            } catch (_: Exception) {
-            } finally {
-                isExportingPdf = false
+
+                _uiState.update {
+                    it.copy(
+                        isGeneratingPdf = false,
+                        generatedPdfFile = pdfFile,
+                        successMessage = "تم إنشاء تقرير PDF بنجاح"
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isGeneratingPdf = false,
+                        errorMessage = "فشل تصدير تقرير PDF: ${e.localizedMessage ?: e.message}"
+                    )
+                }
             }
         }
     }
