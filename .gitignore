@@ -15,4 +15,10 @@
 local.properties
 *.jks
 *.keystore
+keystore.properties
+KEYSTORE_INFO_DO_NOT_SHARE.txt
+firebase_session.json
 *.log
+*.tmp
+dump.xml
+test_helper.py
