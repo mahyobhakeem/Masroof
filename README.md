@@ -76,15 +76,59 @@
 ## معرض الشاشات المحدث
 
 <div align="center">
-
-| الشاشة الرئيسية | سجل المعاملات والتحليل الزمني | التقارير والمخططات البيانية | شاشة الإعدادات الموحدة |
-| :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/37_home.png" width="210" alt="الشاشة الرئيسية - مصروف" /> | <img src="docs/screenshots/43_transactions_history_arabic_day_name.png" width="210" alt="سجل المعاملات والتحليل الزمني" /> | <img src="docs/screenshots/45_reports_executive_palette_donut_chart.png" width="210" alt="التقارير والمخطط الدائري" /> | <img src="docs/screenshots/48_settings_unified_cards_collapsed.png" width="210" alt="شاشة الإعدادات الموحدة" /> |
-
-| بطاقة النسخ السحابي الموسعة | نافذة تسجيل الدخول الآمن | تخصيص العملة والموضع | الأيقونة في مشغل التطبيقات |
-| :---: | :---: | :---: | :---: |
-| <img src="docs/screenshots/49_settings_unified_cards_expanded.png" width="210" alt="بطاقة النسخ السحابي الموسعة" /> | <img src="docs/screenshots/40_google_signin_sheet.png" width="210" alt="نافذة تسجيل الدخول الآمن" /> | <img src="docs/screenshots/25_currency_picker_search.png" width="210" alt="شاشة اختيار العملة" /> | <img src="docs/screenshots/07_launcher_home.png" width="210" alt="أيقونة مشغل التطبيق" /> |
-
+<table>
+  <tr>
+    <td align="center" width="33%">
+      <strong>الشاشة الرئيسية (الوضع الفاتح)</strong><br />
+      <sub>شريط الفترات الزمنية ومؤشر الصافي بالريال اليمني</sub><br /><br />
+      <img src="docs/screenshots/01_home_light.png" width="240" alt="الشاشة الرئيسية - الوضع الفاتح" />
+    </td>
+    <td align="center" width="33%">
+      <strong>الشاشة الرئيسية (الوضع الليلي)</strong><br />
+      <sub>الترويسة الموحدة مع المظهر الزمردي الداكن</sub><br /><br />
+      <img src="docs/screenshots/02_home_dark.png" width="240" alt="الشاشة الرئيسية - الوضع الليلي" />
+    </td>
+    <td align="center" width="33%">
+      <strong>إضافة معاملة مالية</strong><br />
+      <sub>شريط الرصيد المتاح وتنسيق فواصل الآلاف الفوري</sub><br /><br />
+      <img src="docs/screenshots/03_add_transaction.png" width="240" alt="إضافة معاملة مالية" />
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%">
+      <strong>سجل المعاملات المالي</strong><br />
+      <sub>القوائم المنسدلة المدمجة وزر طي وتوسيع الأيام</sub><br /><br />
+      <img src="docs/screenshots/04_transactions_history.png" width="240" alt="سجل المعاملات المالي" />
+    </td>
+    <td align="center" width="33%">
+      <strong>التقارير والمخططات البيانية</strong><br />
+      <sub>زر تصدير الـ PDF والمخطط الدائري ومخطط الأسابيع</sub><br /><br />
+      <img src="docs/screenshots/05_reports_analytics.png" width="240" alt="التقارير والمخططات البيانية" />
+    </td>
+    <td align="center" width="33%">
+      <strong>الإعدادات والنسخ السحابي</strong><br />
+      <sub>بطاقة الحساب الموحدة والمزامنة السحابية المشفرة</sub><br /><br />
+      <img src="docs/screenshots/06_settings_cloud.png" width="240" alt="الإعدادات والنسخ السحابي" />
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="33%">
+      <strong>تقرير الـ PDF المالي المعتمد</strong><br />
+      <sub>ترويسة المستخدم والشعار والجدول المالي الشامل</sub><br /><br />
+      <img src="docs/screenshots/07_pdf_report_preview.png" width="240" alt="كشف الحساب المالي بصيغة PDF" />
+    </td>
+    <td align="center" width="33%">
+      <strong>نافذة العملات العربية الرسمية</strong><br />
+      <sub>دعم 24 عملة عربية وعالمية بأعلام الدول وإشارة التحديد</sub><br /><br />
+      <img src="docs/screenshots/08_arab_currencies.png" width="240" alt="نافذة العملات العربية الرسمية" />
+    </td>
+    <td align="center" width="33%">
+      <strong>شاشة إقلاع التطبيق الفاخرة</strong><br />
+      <sub>شعار مصروف وتدرج لوني انسيابي يمنع الشاشة البيضاء</sub><br /><br />
+      <img src="docs/screenshots/09_splash_screen.png" width="240" alt="شاشة إقلاع التطبيق الزمردية" />
+    </td>
+  </tr>
+</table>
 </div>
 
 ---

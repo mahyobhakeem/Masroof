@@ -20,7 +20,7 @@
 | **هل يجمع تطبيقك بيانات المستخدمين أو يشاركها؟** | **نعم (Yes)** | لأن التطبيق يوفر ميزة النسخ السحابي الاختياري عبر حساب Google للمستخدمين الذين يختارون تفعيلها. |
 | **هل يتم تشفير كافة بيانات المستخدمين أثناء النقل؟** | **نعم (Yes)** | جميع البيانات المنقولة بين التطبيق وخوادم Firebase / Google Cloud مشفرة باستخدام بروتوكول **HTTPS / TLS**. |
 | **هل توفر طريقة للمستخدمين لطلب حذف بياناتهم؟** | **نعم (Yes)** | يمكن للمستخدم حذف بياناته السحابية وحسابه بالكامل من داخل التطبيق بضغطة زر، أو عبر صفحة الويب المخصصة لطلب الحذف. |
-| **رابط طلب حذف الحساب والبيانات السحابية:** | `https://[username].github.io/Masroofi/delete-account/` | الرابط المباشر لصفحة آلية الحذف المستقلة. |
+| **رابط طلب حذف الحساب والبيانات السحابية:** | `https://mahyobhakeem.github.io/Masroof/delete-account/` | الرابط المباشر لصفحة آلية الحذف المستقلة. |
 
 ---
 
@@ -77,8 +77,8 @@
 ### 4. الروابط الرسمية المطلوبة لـ Google Play Console
 
 - **رابط سياسة الخصوصية (Privacy Policy URL):**
-  `https://[username].github.io/Masroofi/privacy/`
+  `https://mahyobhakeem.github.io/Masroof/privacy/`
 - **رابط آلية حذف الحساب والبيانات (Account & Data Deletion URL):**
-  `https://[username].github.io/Masroofi/delete-account/`
+  `https://mahyobhakeem.github.io/Masroof/delete-account/`
 
 </div>

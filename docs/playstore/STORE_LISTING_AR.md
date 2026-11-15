@@ -71,8 +71,8 @@
 
 ### 4. روابط الامتثال والسياسات الرسمية
 
-- **رابط سياسة الخصوصية:** `https://[username].github.io/Masroofi/privacy/`
-- **رابط طلب حذف الحساب والبيانات:** `https://[username].github.io/Masroofi/delete-account/`
+- **رابط سياسة الخصوصية:** `https://mahyobhakeem.github.io/Masroof/privacy/`
+- **رابط طلب حذف الحساب والبيانات:** `https://mahyobhakeem.github.io/Masroof/delete-account/`
 - **البريد الإلكتروني للدعم الفني:** `support@masroof-app.com`
 
 </div>
