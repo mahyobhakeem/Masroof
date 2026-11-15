@@ -14,6 +14,7 @@ import androidx.core.content.res.ResourcesCompat
 import com.masroofi.app.R
 import com.masroofi.app.domain.model.TransactionItem
 import com.masroofi.app.domain.model.TransactionType
+import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
@@ -167,7 +168,7 @@ object PdfReportExporter {
                 canvas = page.canvas
 
                 // ترويسة مختصرة للصفحات المتتالية
-                drawContinuationHeader(canvas, paintEmerald, paintTextWhite, paintSubWhite, periodTitle, userName)
+                drawContinuationHeader(context, canvas, paintEmerald, paintTextWhite, paintSubWhite, periodTitle, userName)
                 currentY = 60f
                 drawTableHeader(canvas, currentY, paintEmerald, paintTableHeader, paintBorder)
                 currentY += 24f
@@ -335,7 +336,7 @@ object PdfReportExporter {
         val titlePaint = Paint(paintTitle).apply { textSize = 14f }
         canvas.drawText("تطبيق مصروف — كشف حساب مالي", textRightX, 33f, titlePaint)
 
-        val clientName = userName?.trim()?.ifBlank { null } ?: "مستخدم مصروف"
+        val clientName = resolveAccountOwnerName(context, userName)
         val userPaint = Paint(paintSub).apply {
             textSize = 9.5f
             color = Color.rgb(255, 255, 255)
@@ -354,7 +355,28 @@ object PdfReportExporter {
         canvas.drawText(nowStr, MARGIN_LEFT, 59f, dateValPaint)
     }
 
+    private fun resolveAccountOwnerName(context: Context, userName: String?): String {
+        val explicit = userName?.trim()?.ifBlank { null }
+        if (explicit != null) return explicit
+
+        // 1. فحص الحساب السحابي الفعلي المسجل عبر جلسة Firebase
+        try {
+            val sessionFile = File(context.filesDir, "firebase_session.json")
+            if (sessionFile.exists()) {
+                val json = JSONObject(sessionFile.readText())
+                val dName = json.optString("displayName", "").trim()
+                if (dName.isNotBlank() && dName != "مستخدم مصروف") {
+                    return dName
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 2. إذا لم يكن مسجلاً في السحابة، الاعتماد على اسم الحساب الافتراضي
+        return "حساب مصروف الشخصي"
+    }
+
     private fun drawContinuationHeader(
+        context: Context,
         canvas: Canvas,
         paintBg: Paint,
         paintTitle: Paint,
@@ -363,7 +385,7 @@ object PdfReportExporter {
         userName: String?
     ) {
         canvas.drawRect(0f, 0f, PAGE_WIDTH.toFloat(), 42f, paintBg)
-        val clientName = userName?.trim()?.ifBlank { null } ?: "مستخدم مصروف"
+        val clientName = resolveAccountOwnerName(context, userName)
         val continuationPaint = Paint(paintTitle).apply { textSize = 11f }
         canvas.drawText("تطبيق مصروف — كشف حساب مالي (تابع) • $periodTitle", MARGIN_RIGHT, 26f, continuationPaint)
         canvas.drawText("صاحب الحساب: $clientName", MARGIN_LEFT, 26f, paintSub)

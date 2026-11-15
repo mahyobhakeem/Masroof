@@ -678,13 +678,13 @@ class SettingsViewModel(
         customEndDate: LocalDate?,
         typeFilter: TransactionTypeFilter,
         currencySymbol: String,
-        ownerName: String = ""
+        ownerName: String? = null
     ) {
         if (_uiState.value.isGeneratingPdf) return
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isGeneratingPdf = true, isPdfExportDialogOpen = false) }
             try {
-                if (ownerName.isNotBlank()) {
+                if (!ownerName.isNullOrBlank()) {
                     preferencesManager.setPdfOwnerName(ownerName)
                     _uiState.update { it.copy(pdfOwnerName = ownerName) }
                 }
@@ -732,11 +732,9 @@ class SettingsViewModel(
                     TransactionTypeFilter.INCOME_ONLY -> filteredByDate.filter { it.type == TransactionType.INCOME }
                 }.sortedByDescending { it.transactionDate }
 
-                val resolvedOwnerName = ownerName.ifBlank {
-                    _uiState.value.pdfOwnerName.ifBlank {
-                        _uiState.value.currentUser?.displayName ?: ""
-                    }
-                }
+                val resolvedOwnerName = ownerName?.ifBlank { null }
+                    ?: _uiState.value.currentUser?.displayName?.ifBlank { null }
+                    ?: _uiState.value.pdfOwnerName.ifBlank { null }
 
                 val pdfFile = PdfReportExporter.generatePdfReport(
                     context = context,

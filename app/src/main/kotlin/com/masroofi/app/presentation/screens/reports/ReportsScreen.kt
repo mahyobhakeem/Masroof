@@ -97,15 +97,9 @@ fun ReportsScreen(
 
     if (isPdfDialogOpen) {
         PdfExportDialog(
-            initialOwnerName = pdfOwnerName,
             onDismiss = { isPdfDialogOpen = false },
-            onConfirmExport = { periodMode, specificDate, customStart, customEnd, typeFilter, ownerName ->
+            onConfirmExport = { periodMode, specificDate, customStart, customEnd, typeFilter ->
                 isPdfDialogOpen = false
-                if (ownerName.isNotBlank()) {
-                    coroutineScope.launch {
-                        preferencesManager.setPdfOwnerName(ownerName)
-                    }
-                }
                 viewModel.exportPdfReport(
                     context = context,
                     periodMode = periodMode,
@@ -114,7 +108,6 @@ fun ReportsScreen(
                     customEndDate = customEnd,
                     typeFilter = typeFilter,
                     currencySymbol = activeCurrency.symbolArabic,
-                    ownerName = ownerName,
                     onSuccess = { file -> generatedPdf = file }
                 )
             }
@@ -986,13 +979,13 @@ private fun WeeklySpendingBarChartCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(180.dp)
+                    .height(204.dp)
             ) {
                 // رسم الخطوط الإرشادية وقضبان الأعمدة عبر Canvas
                 Canvas(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 12.dp, vertical = 26.dp)
+                        .padding(start = 12.dp, end = 12.dp, top = 22.dp, bottom = 48.dp)
                 ) {
                     val canvasWidth = size.width
                     val canvasHeight = size.height
@@ -1059,21 +1052,28 @@ private fun WeeklySpendingBarChartCard(
                                 style = MaterialTheme.typography.bodySmall,
                                 fontWeight = if (isPeak) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isPeak) primaryColor else TextSecondary,
-                                fontSize = 11.sp
+                                fontSize = 10.5.sp,
+                                modifier = Modifier.padding(top = 2.dp)
                             )
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(3.dp),
+                                modifier = Modifier.padding(bottom = 4.dp)
+                            ) {
                                 Text(
                                     text = item.periodName,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = if (isPeak) FontWeight.Bold else FontWeight.Medium,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = if (isPeak) FontWeight.Bold else FontWeight.SemiBold,
                                     color = if (isPeak) primaryColor else MaterialTheme.colorScheme.onSurface,
-                                    fontSize = 11.sp
+                                    fontSize = 10.sp,
+                                    maxLines = 1
                                 )
                                 Text(
                                     text = item.daysLabel,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = TextSecondary,
-                                    fontSize = 9.sp
+                                    fontSize = 8.5.sp,
+                                    maxLines = 1
                                 )
                             }
                         }

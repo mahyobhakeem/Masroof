@@ -146,9 +146,8 @@ fun SettingsScreen(
     val activeCurrency = LocalAppCurrency.current
     if (uiState.isPdfExportDialogOpen) {
         PdfExportDialog(
-            initialOwnerName = uiState.pdfOwnerName.ifBlank { uiState.currentUser?.displayName ?: "" },
             onDismiss = { viewModel.closePdfExportDialog() },
-            onConfirmExport = { periodMode, specificDate, customStart, customEnd, typeFilter, ownerName ->
+            onConfirmExport = { periodMode, specificDate, customStart, customEnd, typeFilter ->
                 viewModel.exportPdfReport(
                     context = context,
                     periodMode = periodMode,
@@ -156,8 +155,7 @@ fun SettingsScreen(
                     customStartDate = customStart,
                     customEndDate = customEnd,
                     typeFilter = typeFilter,
-                    currencySymbol = activeCurrency.symbolArabic,
-                    ownerName = ownerName
+                    currencySymbol = activeCurrency.symbolArabic
                 )
             }
         )

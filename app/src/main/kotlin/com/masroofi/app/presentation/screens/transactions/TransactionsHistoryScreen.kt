@@ -296,7 +296,9 @@ fun TransactionsHistoryContent(
                         DropdownMenu(
                             expanded = isTimeDropdownExpanded,
                             onDismissRequest = { isTimeDropdownExpanded = false },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                            modifier = Modifier
+                                .heightIn(max = 250.dp)
+                                .background(MaterialTheme.colorScheme.surface)
                         ) {
                             DateRangeFilter.values().forEach { period ->
                                 val isSelected = uiState.selectedDatePeriod == period
@@ -404,7 +406,9 @@ fun TransactionsHistoryContent(
                         DropdownMenu(
                             expanded = isCategoryDropdownExpanded,
                             onDismissRequest = { isCategoryDropdownExpanded = false },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                            modifier = Modifier
+                                .heightIn(max = 250.dp)
+                                .background(MaterialTheme.colorScheme.surface)
                         ) {
                             // خيار "جميع التصنيفات"
                             val isAllSelected = uiState.selectedCategoryId == null

@@ -56,18 +56,15 @@ enum class TransactionTypeFilter(val title: String) {
  */
 @Composable
 fun PdfExportDialog(
-    initialOwnerName: String = "",
     onDismiss: () -> Unit,
     onConfirmExport: (
         periodMode: PdfPeriodMode,
         specificDate: LocalDate?,
         customStartDate: LocalDate?,
         customEndDate: LocalDate?,
-        typeFilter: TransactionTypeFilter,
-        ownerName: String
+        typeFilter: TransactionTypeFilter
     ) -> Unit
 ) {
-    var ownerName by remember { mutableStateOf(initialOwnerName) }
     var selectedPeriodMode by remember { mutableStateOf(PdfPeriodMode.THIS_MONTH) }
     var specificDate by remember { mutableStateOf(LocalDate.now()) }
     var customStartDate by remember { mutableStateOf(LocalDate.now().minusDays(30)) }
@@ -138,27 +135,6 @@ fun PdfExportDialog(
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))
-
-                // حقل اسم صاحب التقرير (يظهر في ملف PDF)
-                OutlinedTextField(
-                    value = ownerName,
-                    onValueChange = { ownerName = it },
-                    label = { Text("اسم صاحب التقرير (يظهر في ملف PDF)") },
-                    placeholder = { Text("مثال: عبد الرحمن السعيد") },
-                    leadingIcon = {
-                        Icon(imageVector = Icons.Default.Person, contentDescription = null, tint = PrimaryGreen)
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryGreen,
-                        focusedLabelColor = PrimaryGreen,
-                        cursorColor = PrimaryGreen
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
 
                 // 1. قسم اختيار الفترة الزمنية
                 Text(
@@ -359,8 +335,7 @@ fun PdfExportDialog(
                                 if (selectedPeriodMode == PdfPeriodMode.SPECIFIC_DAY) specificDate else null,
                                 if (selectedPeriodMode == PdfPeriodMode.CUSTOM_RANGE) customStartDate else null,
                                 if (selectedPeriodMode == PdfPeriodMode.CUSTOM_RANGE) customEndDate else null,
-                                selectedTypeFilter,
-                                ownerName.trim()
+                                selectedTypeFilter
                             )
                         },
                         modifier = Modifier.weight(1f),

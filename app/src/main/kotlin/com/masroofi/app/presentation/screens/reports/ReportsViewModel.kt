@@ -256,7 +256,7 @@ class ReportsViewModel(
         customEndDate: LocalDate?,
         typeFilter: TransactionTypeFilter,
         currencySymbol: String,
-        ownerName: String = "",
+        ownerName: String? = null,
         onSuccess: (File) -> Unit
     ) {
         if (isExportingPdf) return
@@ -312,7 +312,7 @@ class ReportsViewModel(
                     periodTitle = periodLabel,
                     currencySymbol = currencySymbol,
                     reportTitle = "تقرير العمليات المالية ($periodLabel)",
-                    userName = ownerName
+                    userName = ownerName?.ifBlank { null }
                 )
 
                 try {
